@@ -1786,6 +1786,11 @@ def super_admin_panel(request):
                 messages.success(request, f"Configuration for {config.test_name} deleted successfully.")
                 return redirect('super_admin_panel')
 
+        elif action == 'delete_all_configs':
+            deleted_count, _ = TestConfig.objects.all().delete()
+            messages.success(request, f"All {deleted_count} test configurations have been successfully deleted.")
+            return redirect('super_admin_panel')
+
         elif action == 'upload_logo':
             logo_file = request.FILES.get('logo_file')
             if not logo_file:
@@ -2014,6 +2019,26 @@ def update_template_config_view(request):
         messages.success(request, "Template header configuration saved successfully.")
         
     return redirect('super_admin_panel')
+
+
+@login_required
+def export_test_configs_pdf(request):
+    profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    if not profile.is_super_admin:
+        messages.error(request, "Access Denied: Only Super Admins can download configuration data.")
+        return redirect('dashboard')
+        
+    configs = TestConfig.objects.all().order_by('test_method', 'test_name')
+    template_config = TemplateConfig.get_solo()
+    generated_at = timezone.now().strftime('%d/%m/%Y %I:%M %p')
+    
+    context = {
+        'configs': configs,
+        'template_config': template_config,
+        'generated_at': generated_at,
+        'total_count': configs.count(),
+    }
+    return render(request, 'reports/export_test_configs_pdf.html', context)
 
 
 @login_required

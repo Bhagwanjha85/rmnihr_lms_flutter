@@ -26,5 +26,6 @@ urlpatterns = [
     path('super-admin/admin/add/', views.add_admin_view, name='add_admin'),
     path('super-admin/admin/<int:pk>/delete/', views.delete_admin_view, name='delete_admin'),
     path('super-admin/template-config/', views.update_template_config_view, name='update_template_config'),
+    path('super-admin/export-configs-pdf/', views.export_test_configs_pdf, name='export_test_configs_pdf'),
     path('about-us/', views.about_us, name='about_us'),
 ]

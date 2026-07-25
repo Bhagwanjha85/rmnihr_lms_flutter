@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Configurations Report - ICMR RMNIHR</title>
+    {% load static %}
+    <style>
+        :root {
+            --primary: #1b285c;
+            --accent: #1075BD;
+            --text-dark: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #cbd5e1;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: #f8fafc;
+            color: var(--text-dark);
+            padding: 24px;
+            font-size: 10pt;
+        }
+
+        /* ACTION BAR (Screen Only) */
+        .action-bar {
+            max-width: 950px;
+            margin: 0 auto 20px auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #ffffff;
+            padding: 12px 20px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .btn-print {
+            background-color: #0284c7;
+            color: #ffffff;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            transition: background 0.2s ease;
+        }
+
+        .btn-print:hover {
+            background-color: #0369a1;
+        }
+
+        .btn-back {
+            color: #475569;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.88rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* REPORT CONTAINER */
+        .report-page {
+            max-width: 950px;
+            margin: 0 auto;
+            background: #ffffff;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 30px 35px;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+        }
+
+        /* HEADER BRANDING */
+        .report-header {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            border-bottom: 2.5px solid var(--primary);
+            padding-bottom: 16px;
+            margin-bottom: 20px;
+        }
+
+        .header-logo {
+            max-height: 65px;
+            width: auto;
+            object-fit: contain;
+        }
+
+        .header-text {
+            flex: 1;
+        }
+
+        .header-text h1 {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: -0.01em;
+            line-height: 1.2;
+        }
+
+        .header-text h2 {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--accent);
+            margin-top: 2px;
+        }
+
+        .header-text p {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* METADATA BAR */
+        .meta-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            padding: 10px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .meta-item strong {
+            color: var(--primary);
+        }
+
+        /* CONFIGS TABLE */
+        .config-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 24px;
+        }
+
+        .config-table thead tr {
+            background-color: var(--primary);
+            color: #ffffff;
+        }
+
+        .config-table th {
+            padding: 9px 12px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border: 1px solid var(--primary);
+            text-align: left;
+        }
+
+        .config-table td {
+            padding: 9px 12px;
+            border: 1px solid #cbd5e1;
+            font-size: 0.88rem;
+            vertical-align: middle;
+        }
+
+        .config-table tbody tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+
+        .method-badge {
+            background: rgba(16, 117, 189, 0.1);
+            color: var(--primary);
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-weight: 700;
+            font-size: 0.78rem;
+            display: inline-block;
+        }
+
+        .test-title {
+            font-weight: 700;
+            color: var(--text-dark);
+        }
+
+        /* FOOTER */
+        .report-footer {
+            border-top: 1.5px solid #e2e8f0;
+            padding-top: 12px;
+            margin-top: 20px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-align: center;
+            line-height: 1.4;
+        }
+
+        /* PRINT STYLES */
+        @media print {
+            @page {
+                size: A4 portrait;
+                margin: 12mm 15mm;
+            }
+
+            body {
+                background: #ffffff;
+                padding: 0;
+            }
+
+            .no-print, .action-bar {
+                display: none !important;
+            }
+
+            .report-page {
+                border: none;
+                box-shadow: none;
+                padding: 0;
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ACTION BAR FOR SCREEN VIEW -->
+    <div class="action-bar no-print">
+        <a href="{% url 'super_admin_panel' %}" class="btn-back">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            Back to Super Admin Panel
+        </a>
+        <button onclick="window.print()" class="btn-print">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            Download / Print PDF
+        </button>
+    </div>
+
+    <!-- DOCUMENT PAGE -->
+    <div class="report-page">
+        <!-- HEADER BRANDING -->
+        <div class="report-header">
+            <img src="{% static 'logo.png' %}" alt="ICMR-RMNIHR Logo" class="header-logo">
+            <div class="header-text">
+                <h1>{{ template_config.dept_main|default:"ICMR - Rajendra Memorial Research Institute of Medical Sciences" }}</h1>
+                <h2>{{ template_config.dept_sub|default:"VIRAL RESEARCH AND DIAGNOSTIC LABORATORY (VRDL)" }}</h2>
+                <p>{{ template_config.dept_address|default:"Agamkuan, Patna - 800007, Bihar, India" }}</p>
+            </div>
+        </div>
+
+        <!-- METADATA BAR -->
+        <div class="meta-bar">
+            <div class="meta-item">
+                Document: <strong>Test Configurations &amp; Cutoff Rules Summary</strong>
+            </div>
+            <div class="meta-item">
+                Generated: <strong>{{ generated_at }}</strong>
+            </div>
+            <div class="meta-item">
+                Total Configs: <strong>{{ total_count }}</strong>
+            </div>
+        </div>
+
+        <!-- CONFIGS TABLE -->
+        {% if configs %}
+        <table class="config-table">
+            <thead>
+                <tr>
+                    <th style="width: 50px;">#</th>
+                    <th style="width: 120px;">Method</th>
+                    <th>Test Name</th>
+                    <th style="width: 170px;">Result Type</th>
+                    <th>Cutoff Values / Options</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in configs %}
+                <tr>
+                    <td style="text-align: center; font-weight: 600; color: var(--text-muted);">{{ forloop.counter }}</td>
+                    <td>
+                        <span class="method-badge">{{ c.test_method }}</span>
+                    </td>
+                    <td class="test-title">{{ c.test_name }}</td>
+                    <td>
+                        {% if c.result_type == 'numeric' %}
+                            Numerical Result
+                        {% elif c.result_type == 'positive_negative' %}
+                            Pos/Neg (2 options)
+                        {% elif c.result_type == 'select' %}
+                            Pos/Neg/Equiv (3 options)
+                        {% elif c.result_type == 'reactive_non_reactive' %}
+                            Reactive/Non-Reactive
+                        {% elif c.result_type == 'custom_dropdown' %}
+                            Custom Dropdown
+                        {% else %}
+                            {{ c.get_result_type_display }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if c.result_type == 'numeric' %}
+                            {% if c.cutoff_value_upper %}
+                                Lower: <strong>{{ c.cutoff_value }}</strong> | Upper: <strong>{{ c.cutoff_value_upper }}</strong>
+                            {% else %}
+                                Cutoff: <strong>&ge; {{ c.cutoff_value }}</strong>
+                            {% endif %}
+                        {% elif c.result_type == 'custom_dropdown' %}
+                            Choices: <strong>{{ c.custom_options }}</strong>
+                        {% else %}
+                            <span style="color: var(--text-muted); font-style: italic;">Standard Options</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div style="text-align: center; padding: 40px 20px; border: 1.5px dashed var(--border-color); border-radius: 8px; color: var(--text-muted);">
+            No test configurations available in the system database.
+        </div>
+        {% endif %}
+
+        <!-- REPORT FOOTER -->
+        <div class="report-footer">
+            <p>This is an official system configuration export document generated by the Super Admin Panel.</p>
+            <p>&copy; ICMR - Rajendra Memorial Research Institute of Medical Sciences (RMNIHR), Agamkuan, Patna, Bihar.</p>
+        </div>
+    </div>
+
+    <!-- AUTO PRINT TRIGGER ON LOAD -->
+    <script>
+        window.addEventListener('DOMContentLoaded', function() {
+            // Optional delay for rendering cleanly before print dialog opens
+            setTimeout(function() {
+                window.print();
+            }, 300);
+        });
+    </script>
+</body>
+</html>
