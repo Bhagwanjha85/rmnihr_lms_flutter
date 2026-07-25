@@ -12,3 +12,6 @@ python manage.py migrate
 
 # Create or update the primary superuser with correct UserProfile configuration
 python manage.py create_superuser_rmnihr --force-update
+
+# Sync database with Firebase Cloud Firestore
+python manage.py sync_firebase

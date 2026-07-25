@@ -64,32 +64,28 @@ def sync_report_to_firebase(report):
         doc_ref = client.collection('reports').document(str(report.id))
         data = {
             'id': report.id,
-            'lab_id': report.lab_id,
-            'patient_name': report.patient_name,
-            'age_value': report.age_value,
-            'age_unit': report.age_unit,
-            'sex': report.sex,
-            'ref_by': report.ref_by,
-            'sample_type': report.sample_type,
-            'test_method': report.test_method,
-            'receiving_date': serialize_val(report.receiving_date),
-            'reporting_date': serialize_val(report.reporting_date),
-            'created_at': serialize_val(report.created_at),
-            'updated_at': serialize_val(report.updated_at),
+            'lab_id': getattr(report, 'lab_id', ''),
+            'patient_name': getattr(report, 'patient_name', ''),
+            'age_value': getattr(report, 'age_value', None),
+            'age_unit': getattr(report, 'age_unit', 'Y'),
+            'sex': getattr(report, 'sex', 'M'),
+            'ref_by': getattr(report, 'ref_by', ''),
+            'sample_type': getattr(report, 'sample_type', ''),
+            'test_method': getattr(report, 'test_method', ''),
+            'receiving_date': serialize_val(getattr(report, 'receiving_date', None)),
+            'reporting_date': serialize_val(getattr(report, 'reporting_date', None)),
+            'created_at': serialize_val(getattr(report, 'created_at', None)),
+            'updated_at': serialize_val(getattr(report, 'updated_at', None)),
         }
 
         tests_data = []
         for test in report.tests.all():
             tests_data.append({
                 'id': test.id,
-                'test_name': test.test_name,
-                'result_value': test.result_value,
-                'unit': test.unit,
-                'normal_range': test.normal_range,
-                'interpretation': test.interpretation,
-                'cutoff_value': test.cutoff_value,
-                'cutoff_value_upper': test.cutoff_value_upper,
-                'result_type': test.result_type,
+                'test_method': getattr(test, 'test_method', ''),
+                'test_name': getattr(test, 'test_name', ''),
+                'result_value': getattr(test, 'result_value', ''),
+                'interpretation_text': getattr(test, 'interpretation_text', ''),
             })
         data['tests'] = tests_data
 
@@ -116,12 +112,12 @@ def sync_config_to_firebase(config):
         doc_ref = client.collection('test_configs').document(str(config.id))
         data = {
             'id': config.id,
-            'test_name': config.test_name,
-            'test_method': config.test_method,
-            'cutoff_value': config.cutoff_value,
-            'cutoff_value_upper': config.cutoff_value_upper,
-            'result_type': config.result_type,
-            'custom_options': config.custom_options,
+            'test_name': getattr(config, 'test_name', ''),
+            'test_method': getattr(config, 'test_method', ''),
+            'cutoff_value': getattr(config, 'cutoff_value', None),
+            'cutoff_value_upper': getattr(config, 'cutoff_value_upper', None),
+            'result_type': getattr(config, 'result_type', 'numeric'),
+            'custom_options': getattr(config, 'custom_options', None),
         }
         doc_ref.set(data)
     except Exception as e:
@@ -200,14 +196,10 @@ def restore_data_from_firebase():
                         id=t.get('id'),
                         defaults={
                             'report': report,
-                            'test_name': t.get('test_name'),
-                            'result_value': t.get('result_value'),
-                            'unit': t.get('unit', ''),
-                            'normal_range': t.get('normal_range', ''),
-                            'interpretation': t.get('interpretation', ''),
-                            'cutoff_value': t.get('cutoff_value'),
-                            'cutoff_value_upper': t.get('cutoff_value_upper'),
-                            'result_type': t.get('result_type', 'numeric'),
+                            'test_method': t.get('test_method', 'ELISA'),
+                            'test_name': t.get('test_name', ''),
+                            'result_value': t.get('result_value', ''),
+                            'interpretation_text': t.get('interpretation_text', ''),
                         }
                     )
             logger.info("Restored Reports from Firebase Firestore.")
