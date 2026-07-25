@@ -26,25 +26,5 @@ def save_test_configs_to_backup():
         print(f"Error saving test configs to backup: {e}")
 
 def restore_test_configs_from_backup_if_needed():
-    try:
-        from reports.models import TestConfig
-        # Check if database has any TestConfig.
-        # If it doesn't, but the backup file exists, restore from it
-        if not TestConfig.objects.exists() and os.path.exists(BACKUP_FILE_PATH):
-            with open(BACKUP_FILE_PATH, 'r', encoding='utf-8') as f:
-                configs = json.load(f)
-            
-            to_create = []
-            for item in configs:
-                to_create.append(TestConfig(
-                    test_name=item.get('test_name'),
-                    test_method=item.get('test_method'),
-                    cutoff_value=item.get('cutoff_value'),
-                    cutoff_value_upper=item.get('cutoff_value_upper'),
-                    result_type=item.get('result_type', 'numeric'),
-                    custom_options=item.get('custom_options')
-                ))
-            if to_create:
-                TestConfig.objects.bulk_create(to_create, ignore_conflicts=True)
-    except Exception as e:
-        print(f"Error restoring test configs from backup: {e}")
+    # Automatic creation of test configs disabled. Only superadmin can create test configs.
+    pass
