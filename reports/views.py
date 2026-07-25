@@ -603,42 +603,20 @@ def dashboard(request):
         
     is_filtered = bool(query or start_date or end_date or test_filter)
     
-    if not is_filtered:
-        # Check cache for stats to enable maximum performance under load
-        cache_key_stats = 'dashboard_stats_counters'
-        cached_stats = cache.get(cache_key_stats)
-        if cached_stats:
-            total_count, positive_count, equivocal_count, negative_count = cached_stats
-        else:
-            stats = reports.annotate(
-                is_pos=Count('tests', filter=Q(tests__interpretation_text__in=['Positive', 'Reactive', 'positive', 'reactive', 'POSITIVE', 'REACTIVE'])),
-                is_eq=Count('tests', filter=Q(tests__interpretation_text__in=['Equivocal', 'equivocal', 'EQUIVOCAL'])),
-                is_neg=Count('tests', filter=Q(tests__interpretation_text__in=['Negative', 'Non-Reactive', 'negative', 'non-reactive', 'NEGATIVE', 'NON-REACTIVE', 'Non-reactive', 'nonreactive', 'Nonreactive']))
-            ).aggregate(
-                pos_cnt=Count('id', filter=Q(is_pos__gt=0)),
-                eq_cnt=Count('id', filter=Q(is_pos=0, is_eq__gt=0)),
-                neg_cnt=Count('id', filter=Q(is_pos=0, is_eq=0, is_neg__gt=0))
-            )
-            total_count = reports.count()
-            positive_count = stats['pos_cnt']
-            equivocal_count = stats['eq_cnt']
-            negative_count = stats['neg_cnt']
-            cache.set(cache_key_stats, (total_count, positive_count, equivocal_count, negative_count), 86400) # Cache for 24 hours (invalidated on write)
-    else:
-        # Calculate stats live on filtered queries
-        stats = reports.annotate(
-            is_pos=Count('tests', filter=Q(tests__interpretation_text__in=['Positive', 'Reactive', 'positive', 'reactive', 'POSITIVE', 'REACTIVE'])),
-            is_eq=Count('tests', filter=Q(tests__interpretation_text__in=['Equivocal', 'equivocal', 'EQUIVOCAL'])),
-            is_neg=Count('tests', filter=Q(tests__interpretation_text__in=['Negative', 'Non-Reactive', 'negative', 'non-reactive', 'NEGATIVE', 'NON-REACTIVE', 'Non-reactive', 'nonreactive', 'Nonreactive']))
-        ).aggregate(
-            pos_cnt=Count('id', filter=Q(is_pos__gt=0)),
-            eq_cnt=Count('id', filter=Q(is_pos=0, is_eq__gt=0)),
-            neg_cnt=Count('id', filter=Q(is_pos=0, is_eq=0, is_neg__gt=0))
-        )
-        total_count = reports.count()
-        positive_count = stats['pos_cnt']
-        equivocal_count = stats['eq_cnt']
-        negative_count = stats['neg_cnt']
+    # Calculate stats live on all queries for instant, real-time dashboard accuracy
+    stats = reports.annotate(
+        is_pos=Count('tests', filter=Q(tests__interpretation_text__in=['Positive', 'Reactive', 'positive', 'reactive', 'POSITIVE', 'REACTIVE'])),
+        is_eq=Count('tests', filter=Q(tests__interpretation_text__in=['Equivocal', 'equivocal', 'EQUIVOCAL'])),
+        is_neg=Count('tests', filter=Q(tests__interpretation_text__in=['Negative', 'Non-Reactive', 'negative', 'non-reactive', 'NEGATIVE', 'NON-REACTIVE', 'Non-reactive', 'nonreactive', 'Nonreactive']))
+    ).aggregate(
+        pos_cnt=Count('id', filter=Q(is_pos__gt=0)),
+        eq_cnt=Count('id', filter=Q(is_pos=0, is_eq__gt=0)),
+        neg_cnt=Count('id', filter=Q(is_pos=0, is_eq=0, is_neg__gt=0))
+    )
+    total_count = reports.count()
+    positive_count = stats['pos_cnt'] or 0
+    equivocal_count = stats['eq_cnt'] or 0
+    negative_count = stats['neg_cnt'] or 0
     
     # Build choices with selected flag so template needs no == comparison
     all_test_choices = [c[0] for c in ReportTest.TEST_CHOICES]
@@ -1353,9 +1331,13 @@ def bulk_upload(request):
                     }
                     
                     metadata_fields = {
-                        'labid', 'sampletype', 'patientname', 'receivingdate', 
-                        'reportingdate', 'age', 'ageunit', 'unit', 'sex', 'refby', 'testmethod',
-                        'sno', 'testname', 'resultvalue', 'interpretation'
+                        'labid', 'lab_id', 'sampletype', 'sample_type', 'patientname', 'patient_name', 
+                        'receivingdate', 'receiving_date', 'reportingdate', 'reporting_date', 
+                        'age', 'ageunit', 'ageunits', 'unit', 'units', 'agetype', 'age_type',
+                        'ageinyears', 'ageinmonths', 'ageindays', 'ageyear', 'agemonth', 'ageday',
+                        'sex', 'gender', 'refby', 'ref_by', 'referredby', 'testmethod', 'test_method',
+                        'sno', 'sn', 'srno', 'slno', 'sl_no', 'testname', 'test_name', 
+                        'resultvalue', 'result_value', 'interpretation', 'remarks', 'remark'
                     }
 
                     # Pre-load TestConfig into dictionary for fast lookup in memory
@@ -1381,7 +1363,14 @@ def bulk_upload(request):
                         
                         # Parse age and age unit
                         age_raw = str(data.get('age', '') or '').strip().upper()
-                        age_unit_raw = str(data.get('ageunit', '') or data.get('unit', '') or '').strip().upper()
+                        age_unit_raw = str(
+                            data.get('ageunit', '') or 
+                            data.get('ageunits', '') or 
+                            data.get('unit', '') or 
+                            data.get('units', '') or 
+                            data.get('agetype', '') or 
+                            ''
+                        ).strip().upper()
                         
                         age_unit = 'Y'
                         if age_unit_raw:
@@ -1463,7 +1452,12 @@ def bulk_upload(request):
                             if i >= len(headers):
                                 break
                             header_normalized = headers[i]
-                            if not header_normalized or header_normalized in metadata_fields:
+                            if (not header_normalized or 
+                                header_normalized in metadata_fields or 
+                                'ageunit' in header_normalized or 
+                                'age_unit' in header_normalized or 
+                                header_normalized.startswith('unit') or 
+                                header_normalized.startswith('agein')):
                                 continue
                             
                             val = cell.value
