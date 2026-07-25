@@ -1572,6 +1572,11 @@ def bulk_upload(request):
                                 
                         ReportTest.objects.bulk_create(tests_to_create, batch_size=1000)
                         
+                        # Sync bulk created reports to Firebase Firestore
+                        from reports.firebase_sync import sync_report_to_firebase
+                        for report_obj in created_reports:
+                            sync_report_to_firebase(report_obj)
+                        
                         from django.core.cache import cache
                         cache.clear()
                         
