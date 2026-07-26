@@ -309,9 +309,9 @@
                                         style="background-color: var(--border-color); color: var(--text-main);">{{ report.ref_by }}</span></td>
                                 {% for method in methods_list %}
                                 <td>
-                                    {% if report.test_method|upper == method|upper %}
                                     <div style="display: flex; flex-direction: column; gap: 4px;">
                                         {% for t in report.tests.all %}
+                                        {% if t.test_method|upper == method|upper or not t.test_method and report.test_method|upper == method|upper or forloop.parentloop.first and not t.test_method and not report.test_method %}
                                         <div style="font-size: 0.8rem; white-space: nowrap;">
                                             <span style="font-weight: 500;">{{ t.test_name }}:</span>
                                             <span style="font-weight: bold;">{{ t.result_value }}</span>
@@ -323,9 +323,9 @@
                                             <span style="color: var(--status-equivocal);">(±)</span>
                                             {% endif %}
                                         </div>
+                                        {% endif %}
                                         {% endfor %}
                                     </div>
-                                    {% endif %}
                                 </td>
                                 {% endfor %}
                                 {% if user.profile.is_super_admin %}

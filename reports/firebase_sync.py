@@ -200,6 +200,18 @@ def restore_data_from_firebase():
 
         # 2. Restore Reports & ReportTests if DB or tests are missing
         if not Report.objects.exists() or not ReportTest.objects.exists():
+            from reports.models import determine_interpretation
+            configs_dict = {}
+            for tc in TestConfig.objects.all():
+                m_key = tc.test_method.upper()
+                n_key = tc.test_name.strip().lower()
+                if m_key not in configs_dict:
+                    configs_dict[m_key] = {}
+                configs_dict[m_key][n_key] = tc
+                if 'ALL' not in configs_dict:
+                    configs_dict['ALL'] = {}
+                configs_dict['ALL'][n_key] = tc
+
             reports_docs = client.collection('reports').stream()
             for doc in reports_docs:
                 d = doc.to_dict()
@@ -226,28 +238,32 @@ def restore_data_from_firebase():
                 tests = d.get('tests', [])
                 for t in tests:
                     t_id = t.get('id')
+                    t_name = t.get('test_name', '')
+                    t_method = (t.get('test_method') or report.test_method or 'ELISA').upper()
+                    t_val = t.get('result_value', '')
+                    t_interp = t.get('interpretation_text', '')
+
+                    if not t_interp and t_val:
+                        config = configs_dict.get(t_method, {}).get(t_name.lower()) or configs_dict.get('ALL', {}).get(t_name.lower())
+                        t_interp = determine_interpretation(t_name, t_method, t_val, config=config)
+
+                    defaults_dict = {
+                        'report': report,
+                        'test_method': t_method,
+                        'test_name': t_name,
+                        'result_value': t_val,
+                        'interpretation_text': t_interp,
+                    }
+
                     if t_id:
-                        ReportTest.objects.update_or_create(
-                            id=t_id,
-                            defaults={
-                                'report': report,
-                                'test_method': t.get('test_method', 'ELISA'),
-                                'test_name': t.get('test_name', ''),
-                                'result_value': t.get('result_value', ''),
-                                'interpretation_text': t.get('interpretation_text', ''),
-                            }
-                        )
+                        ReportTest.objects.update_or_create(id=t_id, defaults=defaults_dict)
                     else:
-                        ReportTest.objects.get_or_create(
+                        ReportTest.objects.update_or_create(
                             report=report,
-                            test_name=t.get('test_name', ''),
-                            defaults={
-                                'test_method': t.get('test_method', 'ELISA'),
-                                'result_value': t.get('result_value', ''),
-                                'interpretation_text': t.get('interpretation_text', ''),
-                            }
+                            test_name=t_name,
+                            defaults=defaults_dict
                         )
-            logger.info("Restored Reports and ReportTests from Firebase Firestore.")
+            logger.info("Restored Reports and ReportTests with calculated interpretations from Firebase Firestore.")
 
         # 3. Restore PublicReportAccess if DB is empty
         if not PublicReportAccess.objects.exists():

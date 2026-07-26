@@ -648,6 +648,13 @@ def dashboard(request):
                 updated_tests.append(t)
         if updated_tests:
             ReportTest.objects.bulk_update(updated_tests, ['interpretation_text'])
+            try:
+                from reports.firebase_sync import sync_report_to_firebase
+                affected_report_ids = set(t.report_id for t in updated_tests if t.report_id)
+                for r in Report.objects.filter(id__in=affected_report_ids):
+                    sync_report_to_firebase(r)
+            except Exception as sync_e:
+                logger.error(f"Error syncing auto-repaired reports to Firebase: {sync_e}")
 
     # Standardized terms for stats aggregation
     pos_terms = ['Positive', 'Reactive', 'positive', 'reactive', 'POSITIVE', 'REACTIVE', 'Pos', 'POS', 'React', 'REACT', 'Detected', 'DETECTED', 'Present', 'PRESENT']
