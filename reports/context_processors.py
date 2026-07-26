@@ -11,6 +11,12 @@ def active_logos(request):
     }
 
 def visitor_count(request):
+    try:
+        from reports.firebase_sync import ensure_database_hydrated, sync_visitor_to_firebase
+        ensure_database_hydrated()
+    except Exception:
+        pass
+
     cached_count = cache.get('visitor_count_cache')
     
     # 1. Skip counting authenticated staff/admin users
@@ -61,8 +67,14 @@ def visitor_count(request):
     if ip and not is_private:
         if not request.session.get('has_counted_visit'):
             try:
-                Visitor.objects.create(ip_address=ip)
+                v = Visitor.objects.create(ip_address=ip)
                 request.session['has_counted_visit'] = True
+                try:
+                    from reports.firebase_sync import sync_visitor_to_firebase
+                    sync_visitor_to_firebase(v)
+                except Exception:
+                    pass
+
                 if cached_count is not None:
                     try:
                         cached_count = cache.incr('visitor_count_cache')

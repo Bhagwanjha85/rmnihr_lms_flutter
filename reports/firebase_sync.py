@@ -151,16 +151,32 @@ def sync_public_access_to_firebase(access_obj):
         logger.error(f"Error syncing public report access {getattr(access_obj, 'lab_id', '')} to Firebase: {e}")
 
 
+def sync_visitor_to_firebase(visitor_obj):
+    try:
+        client = get_firestore_client()
+        if not client:
+            return
+        doc_ref = client.collection('visitors').document(str(visitor_obj.id))
+        data = {
+            'id': visitor_obj.id,
+            'ip_address': visitor_obj.ip_address,
+            'created_at': serialize_val(getattr(visitor_obj, 'created_at', datetime.now())),
+        }
+        doc_ref.set(data, merge=True)
+    except Exception as e:
+        logger.error(f"Error syncing visitor {getattr(visitor_obj, 'id', '')} to Firebase: {e}")
+
+
 def restore_data_from_firebase():
     """
-    Restores reports, test configs, and public report access from Firebase Firestore if local Django database is empty on boot.
+    Restores reports, test configs, public report access, and visitor records from Firebase Firestore if local Django database is empty on boot.
     """
     try:
         client = get_firestore_client()
         if not client:
             return
 
-        from reports.models import Report, ReportTest, TestConfig, PublicReportAccess
+        from reports.models import Report, ReportTest, TestConfig, PublicReportAccess, Visitor
 
         # 1. Restore TestConfigs if DB is empty
         if not TestConfig.objects.exists():
@@ -232,18 +248,31 @@ def restore_data_from_firebase():
                     lab_id=d.get('lab_id').strip().upper()
                 )
             logger.info("Restored PublicReportAccess from Firebase Firestore.")
+
+        # 4. Restore Visitors if DB is empty
+        if not Visitor.objects.exists():
+            visitor_docs = client.collection('visitors').stream()
+            for doc in visitor_docs:
+                d = doc.to_dict()
+                if not d or not d.get('ip_address'):
+                    continue
+                Visitor.objects.get_or_create(
+                    id=d.get('id'),
+                    defaults={'ip_address': d.get('ip_address')}
+                )
+            logger.info("Restored Visitors from Firebase Firestore.")
     except Exception as e:
         logger.error(f"Error restoring data from Firebase Firestore: {e}")
 
 
 def ensure_database_hydrated():
     """
-    Checks if local database has reports and public access records.
+    Checks if local database has reports, public access, and visitor records.
     If empty (e.g. after container restart), auto-restores data from Firebase Firestore.
     """
     try:
-        from reports.models import Report, PublicReportAccess
-        if not Report.objects.exists() or not PublicReportAccess.objects.exists():
+        from reports.models import Report, PublicReportAccess, Visitor
+        if not Report.objects.exists() or not PublicReportAccess.objects.exists() or not Visitor.objects.exists():
             restore_data_from_firebase()
     except Exception as e:
         logger.error(f"Auto-hydration check error: {e}")
