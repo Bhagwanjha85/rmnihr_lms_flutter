@@ -454,9 +454,9 @@ class PublicReportAccessTest(TestCase):
     def test_public_report_access_tracks_unique_lab_id_once(self):
         url = reverse('public_report_search')
         
-        # Initial access before search should reflect total Report count in db (1 created in setUp)
+        # Initial access before search should have 0 public report count
         res1 = self.client.get(url)
-        self.assertEqual(res1.context['total_reports_count'], 1)
+        self.assertEqual(res1.context['total_reports_count'], 0)
 
         # First successful search for PUB-100
         res2 = self.client.post(url, {
@@ -469,7 +469,7 @@ class PublicReportAccessTest(TestCase):
         self.assertIsNotNone(res2.context['report'])
         self.assertEqual(res2.context['total_reports_count'], 1)
 
-        # Repeated search for same lab_id PUB-100
+        # Repeated search for same lab_id PUB-100 (count stays 1)
         res3 = self.client.post(url, {
             'lab_id': 'PUB-100',
             'age_value': 30,

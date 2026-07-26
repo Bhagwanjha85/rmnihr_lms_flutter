@@ -70,6 +70,12 @@ def determine_interpretation(test_name, test_method, result_value, config=None):
         '+': 'Positive',
         '(+)': 'Positive',
         'p': 'Positive',
+        'detected': 'Positive',
+        'present': 'Positive',
+        'abnormal': 'Positive',
+        'high': 'Positive',
+        'pos(+)': 'Positive',
+        'positive(+)': 'Positive',
         'reactive': 'Reactive',
         'react': 'Reactive',
         'r': 'Reactive',
@@ -78,6 +84,13 @@ def determine_interpretation(test_name, test_method, result_value, config=None):
         '-': 'Negative',
         '(-)': 'Negative',
         'n': 'Negative',
+        'not detected': 'Negative',
+        'notdetected': 'Negative',
+        'absent': 'Negative',
+        'normal': 'Negative',
+        'low': 'Negative',
+        'neg(-)': 'Negative',
+        'negative(-)': 'Negative',
         'non-reactive': 'Non-Reactive',
         'nonreactive': 'Non-Reactive',
         'non reactive': 'Non-Reactive',
@@ -86,13 +99,16 @@ def determine_interpretation(test_name, test_method, result_value, config=None):
         'eq': 'Equivocal',
         '+/-': 'Equivocal',
         '(+/-)': 'Equivocal',
+        'borderline': 'Equivocal',
+        'indeterminant': 'Equivocal',
+        'indeterminate': 'Equivocal',
         'invalid': 'Invalid',
     }
     
     name_lower = (test_name or '').lower()
     is_reactive_test = any(x in name_lower for x in ['hbs', 'hcv', 'antibody', 'ag', 'reactive'])
 
-    # 1. Check qualitative mapping first
+    # 1. Check exact qualitative mapping
     if val_clean in qualitative_mapping:
         interp = qualitative_mapping[val_clean]
         if is_reactive_test:
@@ -110,19 +126,22 @@ def determine_interpretation(test_name, test_method, result_value, config=None):
 
         if result_type == 'numeric':
             try:
-                val = float(res_str)
-                if cutoff_val_upper is not None and cutoff_val is not None:
-                    if val < cutoff_val:
-                        return "Non-Reactive" if is_reactive_test else "Negative"
-                    elif val > cutoff_val_upper:
-                        return "Reactive" if is_reactive_test else "Positive"
-                    else:
-                        return "Equivocal"
-                elif cutoff_val is not None:
-                    if val >= cutoff_val:
-                        return "Reactive" if is_reactive_test else "Positive"
-                    else:
-                        return "Non-Reactive" if is_reactive_test else "Negative"
+                import re
+                nums = re.findall(r'[-+]?\d*\.\d+|\d+', res_str)
+                if nums:
+                    val = float(nums[0])
+                    if cutoff_val_upper is not None and cutoff_val is not None:
+                        if val < cutoff_val:
+                            return "Non-Reactive" if is_reactive_test else "Negative"
+                        elif val > cutoff_val_upper:
+                            return "Reactive" if is_reactive_test else "Positive"
+                        else:
+                            return "Equivocal"
+                    elif cutoff_val is not None:
+                        if val >= cutoff_val:
+                            return "Reactive" if is_reactive_test else "Positive"
+                        else:
+                            return "Non-Reactive" if is_reactive_test else "Negative"
             except ValueError:
                 pass
         elif result_type in ['positive_negative', 'select', 'reactive_non_reactive', 'custom_dropdown']:
@@ -130,31 +149,48 @@ def determine_interpretation(test_name, test_method, result_value, config=None):
                 return qualitative_mapping[val_clean]
             return res_str
 
+    # 3. Substring qualitative check
+    if any(x in val_clean for x in ['non-reactive', 'nonreactive', 'not detected', 'notdetected', 'absent', 'non reactive']):
+        return 'Non-Reactive' if is_reactive_test else 'Negative'
+    if any(x in val_clean for x in ['reactive', 'detected', 'present']):
+        return 'Reactive' if is_reactive_test else 'Positive'
+    if any(x in val_clean for x in ['positive', 'pos']):
+        if 'neg' in val_clean or 'non' in val_clean:
+            return 'Non-Reactive' if is_reactive_test else 'Negative'
+        return 'Reactive' if is_reactive_test else 'Positive'
+    if any(x in val_clean for x in ['negative', 'neg']):
+        return 'Non-Reactive' if is_reactive_test else 'Negative'
+    if any(x in val_clean for x in ['equivocal', 'borderline']):
+        return 'Equivocal'
+
     # 3. Universal numerical evaluation fallback
     try:
-        val = float(res_str)
-        if 'hbs' in name_lower or 'hbsag' in name_lower:
-            return "Reactive" if val >= 0.191 else "Non-Reactive"
-        elif 'hcv' in name_lower:
-            return "Reactive" if val >= 0.361 else "Non-Reactive"
-        elif 'hiv' in name_lower:
-            return "Reactive" if val >= 1.0 else "Non-Reactive"
-        else:
-            method_upper = (test_method or '').upper()
-            if method_upper == 'ELISA' or any(x in name_lower for x in ['igm', 'igg', 'dengue', 'chik', 'je', 'measles', 'mumps', 'rubella', 'scrub']):
-                if val < 9.0:
-                    return "Negative"
-                elif val > 11.0:
-                    return "Positive"
-                else:
-                    return "Equivocal"
+        import re
+        nums = re.findall(r'[-+]?\d*\.\d+|\d+', res_str)
+        if nums:
+            val = float(nums[0])
+            if 'hbs' in name_lower or 'hbsag' in name_lower:
+                return "Reactive" if val >= 0.191 else "Non-Reactive"
+            elif 'hcv' in name_lower:
+                return "Reactive" if val >= 0.361 else "Non-Reactive"
+            elif 'hiv' in name_lower:
+                return "Reactive" if val >= 1.0 else "Non-Reactive"
             else:
-                if val >= 1.0:
-                    return "Positive"
-                elif val < 0.9:
-                    return "Negative"
+                method_upper = (test_method or '').upper()
+                if method_upper == 'ELISA' or any(x in name_lower for x in ['igm', 'igg', 'dengue', 'chik', 'je', 'measles', 'mumps', 'rubella', 'scrub']):
+                    if val < 9.0:
+                        return "Negative"
+                    elif val > 11.0:
+                        return "Positive"
+                    else:
+                        return "Equivocal"
                 else:
-                    return "Equivocal"
+                    if val >= 1.0:
+                        return "Positive"
+                    elif val < 0.9:
+                        return "Negative"
+                    else:
+                        return "Equivocal"
     except ValueError:
         pass
 

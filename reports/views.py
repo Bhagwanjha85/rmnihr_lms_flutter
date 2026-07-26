@@ -603,11 +603,43 @@ def dashboard(request):
         
     is_filtered = bool(query or start_date or end_date or test_filter)
     
+    # Auto-repair any empty or uncalculated interpretation_text in ReportTest records
+    empty_interp_tests = ReportTest.objects.filter(Q(interpretation_text='') | Q(interpretation_text__isnull=True))
+    if empty_interp_tests.exists():
+        updated_tests = []
+        configs_dict = {}
+        for tc in TestConfig.objects.all():
+            m_key = tc.test_method.upper()
+            n_key = tc.test_name.strip().lower()
+            if m_key not in configs_dict:
+                configs_dict[m_key] = {}
+            configs_dict[m_key][n_key] = tc
+            if 'ALL' not in configs_dict:
+                configs_dict['ALL'] = {}
+            configs_dict['ALL'][n_key] = tc
+        
+        from .models import determine_interpretation
+        for t in empty_interp_tests.select_related('report'):
+            method = (t.test_method or t.report.test_method or 'ELISA').upper()
+            name = t.test_name or ''
+            config = configs_dict.get(method, {}).get(name.lower()) or configs_dict.get('ALL', {}).get(name.lower())
+            new_interp = determine_interpretation(name, method, t.result_value, config=config)
+            if new_interp:
+                t.interpretation_text = new_interp
+                updated_tests.append(t)
+        if updated_tests:
+            ReportTest.objects.bulk_update(updated_tests, ['interpretation_text'])
+
+    # Standardized terms for stats aggregation
+    pos_terms = ['Positive', 'Reactive', 'positive', 'reactive', 'POSITIVE', 'REACTIVE', 'Pos', 'POS', 'React', 'REACT', 'Detected', 'DETECTED', 'Present', 'PRESENT']
+    neg_terms = ['Negative', 'Non-Reactive', 'negative', 'non-reactive', 'NEGATIVE', 'NON-REACTIVE', 'Non-reactive', 'nonreactive', 'Nonreactive', 'Neg', 'NEG', 'Not Detected', 'NOT DETECTED', 'Absent', 'ABSENT']
+    eq_terms = ['Equivocal', 'equivocal', 'EQUIVOCAL', 'Eq', 'EQ', 'Borderline', 'BORDERLINE']
+
     # Calculate stats live on all queries for instant, real-time dashboard accuracy
     stats = reports.annotate(
-        is_pos=Count('tests', filter=Q(tests__interpretation_text__in=['Positive', 'Reactive', 'positive', 'reactive', 'POSITIVE', 'REACTIVE'])),
-        is_eq=Count('tests', filter=Q(tests__interpretation_text__in=['Equivocal', 'equivocal', 'EQUIVOCAL'])),
-        is_neg=Count('tests', filter=Q(tests__interpretation_text__in=['Negative', 'Non-Reactive', 'negative', 'non-reactive', 'NEGATIVE', 'NON-REACTIVE', 'Non-reactive', 'nonreactive', 'Nonreactive']))
+        is_pos=Count('tests', filter=Q(tests__interpretation_text__in=pos_terms)),
+        is_eq=Count('tests', filter=Q(tests__interpretation_text__in=eq_terms)),
+        is_neg=Count('tests', filter=Q(tests__interpretation_text__in=neg_terms))
     ).aggregate(
         pos_cnt=Count('id', filter=Q(is_pos__gt=0)),
         eq_cnt=Count('id', filter=Q(is_pos=0, is_eq__gt=0)),
@@ -698,11 +730,14 @@ def dashboard_analytics(request):
         if name not in disease_analysis:
             disease_analysis[name] = {'positive': 0, 'negative': 0, 'equivocal': 0, 'other': 0, 'total': 0}
             
-        if interp in ['positive', 'reactive']:
-            disease_analysis[name]['positive'] += count
-        elif interp in ['negative', 'non-reactive']:
+        if any(k in interp for k in ['positive', 'reactive', 'pos', 'react', 'detected', 'present']):
+            if 'non' in interp or 'not' in interp or 'neg' in interp:
+                disease_analysis[name]['negative'] += count
+            else:
+                disease_analysis[name]['positive'] += count
+        elif any(k in interp for k in ['negative', 'non-reactive', 'nonreactive', 'neg', 'not detected', 'absent']):
             disease_analysis[name]['negative'] += count
-        elif interp in ['equivocal']:
+        elif any(k in interp for k in ['equivocal', 'borderline', 'eq']):
             disease_analysis[name]['equivocal'] += count
         else:
             disease_analysis[name]['other'] += count
@@ -1325,22 +1360,25 @@ def bulk_upload(request):
                         'age', 'ageunit', 'ageunits', 'unit', 'units', 'agetype', 'age_type',
                         'ageinyears', 'ageinmonths', 'ageindays', 'ageyear', 'agemonth', 'ageday',
                         'sex', 'gender', 'refby', 'ref_by', 'referredby', 'testmethod', 'test_method',
-                        'sno', 'sn', 'srno', 'slno', 'sl_no', 'testname', 'test_name', 
-                        'resultvalue', 'result_value', 'interpretation', 'remarks', 'remark'
+                        'sno', 'sn', 'srno', 'slno', 'sl_no'
                     }
 
                     # Pre-load TestConfig into dictionary for fast lookup in memory
                     configs_dict = {}
                     for tc in TestConfig.objects.all():
-                        method_key = tc.test_method.upper()
-                        if method_key not in configs_dict:
-                            configs_dict[method_key] = {}
-                        configs_dict[method_key][tc.test_name] = {
+                        m_key = tc.test_method.upper()
+                        n_key = tc.test_name.strip().lower()
+                        if m_key not in configs_dict:
+                            configs_dict[m_key] = {}
+                        configs_dict[m_key][n_key] = {
                             'result_type': tc.result_type,
                             'cutoff_value': tc.cutoff_value,
                             'cutoff_value_upper': tc.cutoff_value_upper,
                             'custom_options': tc.custom_options
                         }
+                        if 'ALL' not in configs_dict:
+                            configs_dict['ALL'] = {}
+                        configs_dict['ALL'][n_key] = configs_dict[m_key][n_key]
 
                     reports_to_create = []
                     row_tests_data = [] # List of lists: for each report, a list of test info dicts
@@ -1435,14 +1473,38 @@ def bulk_upload(request):
                         report = Report(**report_kwargs)
                         reports_to_create.append(report)
                         
-                        # Process individual test columns (from column J/index 9 onwards)
+                        # Process individual test columns or row-wise test entries
                         this_row_tests = []
+                        
+                        # Check for single-test row format (columns like Test Name & Result Value)
+                        explicit_test_name = (
+                            data.get('testname') or data.get('test_name') or data.get('test')
+                        )
+                        explicit_result_val = (
+                            data.get('resultvalue') or data.get('result_value') or data.get('result') or 
+                            data.get('interpretation') or data.get('remarks') or data.get('remark')
+                        )
+                        
+                        if explicit_test_name and explicit_result_val is not None:
+                            t_name_raw = str(explicit_test_name).strip()
+                            t_name_norm = re.sub(r'[^a-z0-9]', '', t_name_raw.lower())
+                            t_name_db = TEST_NAME_MAPPING.get(t_name_norm, t_name_raw)
+                            t_val_str = str(explicit_result_val).strip()
+                            if t_name_db and t_val_str:
+                                this_row_tests.append({
+                                    'test_name': t_name_db,
+                                    'result_value': t_val_str,
+                                    'test_method': report_kwargs['test_method']
+                                })
+                        
+                        # Check for multi-test column headers (e.g. HBsAg, Dengue IgM, HCV, etc.)
                         for i, cell in enumerate(row):
                             if i >= len(headers):
                                 break
                             header_normalized = headers[i]
                             if (not header_normalized or 
                                 header_normalized in metadata_fields or 
+                                header_normalized in ['testname', 'test_name', 'test', 'resultvalue', 'result_value', 'result', 'interpretation', 'remarks', 'remark'] or
                                 'ageunit' in header_normalized or 
                                 'age_unit' in header_normalized or 
                                 header_normalized.startswith('unit') or 
@@ -1454,11 +1516,12 @@ def bulk_upload(request):
                                 val_str = str(val).strip()
                                 if val_str:  # Only add if the cell is not empty
                                     test_name_db = TEST_NAME_MAPPING.get(header_normalized, str(rows[0][i].value).strip())
-                                    this_row_tests.append({
-                                        'test_name': test_name_db,
-                                        'result_value': val_str,
-                                        'test_method': report_kwargs['test_method']
-                                    })
+                                    if not any(t['test_name'] == test_name_db for t in this_row_tests):
+                                        this_row_tests.append({
+                                            'test_name': test_name_db,
+                                            'result_value': val_str,
+                                            'test_method': report_kwargs['test_method']
+                                        })
                         row_tests_data.append(this_row_tests)
                         
                     # Bulk create reports and associated tests within a single transaction
@@ -1473,7 +1536,7 @@ def bulk_upload(request):
                                 name = info['test_name']
                                 res_val = info['result_value']
                                 method = info['test_method'].upper()
-                                config = configs_dict.get(method, {}).get(name)
+                                config = configs_dict.get(method, {}).get(name.lower()) or configs_dict.get('ALL', {}).get(name.lower())
                                 
                                 interpretation_text = determine_interpretation(name, method, res_val, config=config)
                                                     
@@ -2174,7 +2237,8 @@ def public_report_search(request):
                 error_message = "Invalid age entered. Please enter a valid number for age."
 
     template_config = TemplateConfig.get_solo()
-    total_reports_count = Report.objects.count()
+    from reports.models import PublicReportAccess
+    total_reports_count = PublicReportAccess.objects.count()
 
     sex_map = {'M': 'MALE', 'F': 'FEMALE', 'O': 'OTHER'}
     for rep in reports_list:
