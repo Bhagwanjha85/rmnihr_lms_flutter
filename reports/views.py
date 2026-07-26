@@ -1542,14 +1542,23 @@ def bulk_upload(request):
                                         })
                         row_tests_data.append(this_row_tests)
                         
-                    # Create reports with guaranteed primary key IDs and associated tests within an atomic transaction
+                    # Create or update reports with guaranteed primary key IDs and associated tests within an atomic transaction
                     with transaction.atomic():
                         created_reports = []
-                        tests_to_create = []
                         from .models import determine_interpretation
                         
                         for report_kwargs, tests_info in zip(reports_kwargs_list, row_tests_data):
-                            report_obj = Report.objects.create(**report_kwargs)
+                            lab_id_val = report_kwargs.get('lab_id')
+                            if lab_id_val:
+                                report_obj, created = Report.objects.update_or_create(
+                                    lab_id=lab_id_val,
+                                    defaults=report_kwargs
+                                )
+                                # Clear existing tests if updating
+                                ReportTest.objects.filter(report=report_obj).delete()
+                            else:
+                                report_obj = Report.objects.create(**report_kwargs)
+                                
                             created_reports.append(report_obj)
                             for info in tests_info:
                                 name = info['test_name']
@@ -1559,16 +1568,13 @@ def bulk_upload(request):
                                 
                                 interpretation_text = determine_interpretation(name, method, res_val, config=config)
                                                     
-                                tests_to_create.append(ReportTest(
+                                ReportTest.objects.create(
                                     report=report_obj,
                                     test_name=name,
                                     result_value=res_val,
                                     test_method=info['test_method'],
                                     interpretation_text=interpretation_text
-                                ))
-                                
-                        if tests_to_create:
-                            ReportTest.objects.bulk_create(tests_to_create, batch_size=1000)
+                                )
                         
                     # Sync created reports (with valid primary keys & child tests) to Firebase Firestore
                     try:

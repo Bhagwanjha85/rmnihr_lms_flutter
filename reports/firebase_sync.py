@@ -198,12 +198,12 @@ def restore_data_from_firebase():
                 )
             logger.info("Restored TestConfigs from Firebase Firestore.")
 
-        # 2. Restore Reports if DB is empty
-        if not Report.objects.exists():
+        # 2. Restore Reports & ReportTests if DB or tests are missing
+        if not Report.objects.exists() or not ReportTest.objects.exists():
             reports_docs = client.collection('reports').stream()
             for doc in reports_docs:
                 d = doc.to_dict()
-                if not d:
+                if not d or not d.get('id'):
                     continue
                 rec_date = datetime.fromisoformat(d['receiving_date']).date() if d.get('receiving_date') else None
                 rep_date = datetime.fromisoformat(d['reporting_date']).date() if d.get('reporting_date') else None
@@ -211,31 +211,43 @@ def restore_data_from_firebase():
                 report, created = Report.objects.update_or_create(
                     id=d.get('id'),
                     defaults={
-                        'lab_id': d.get('lab_id'),
-                        'patient_name': d.get('patient_name'),
+                        'lab_id': d.get('lab_id', ''),
+                        'patient_name': d.get('patient_name', ''),
                         'age_value': d.get('age_value'),
                         'age_unit': d.get('age_unit', 'Y'),
                         'sex': d.get('sex', 'M'),
-                        'ref_by': d.get('ref_by'),
-                        'sample_type': d.get('sample_type'),
-                        'test_method': d.get('test_method'),
+                        'ref_by': d.get('ref_by', ''),
+                        'sample_type': d.get('sample_type', ''),
+                        'test_method': d.get('test_method', ''),
                         'receiving_date': rec_date,
                         'reporting_date': rep_date,
                     }
                 )
                 tests = d.get('tests', [])
                 for t in tests:
-                    ReportTest.objects.update_or_create(
-                        id=t.get('id'),
-                        defaults={
-                            'report': report,
-                            'test_method': t.get('test_method', 'ELISA'),
-                            'test_name': t.get('test_name', ''),
-                            'result_value': t.get('result_value', ''),
-                            'interpretation_text': t.get('interpretation_text', ''),
-                        }
-                    )
-            logger.info("Restored Reports from Firebase Firestore.")
+                    t_id = t.get('id')
+                    if t_id:
+                        ReportTest.objects.update_or_create(
+                            id=t_id,
+                            defaults={
+                                'report': report,
+                                'test_method': t.get('test_method', 'ELISA'),
+                                'test_name': t.get('test_name', ''),
+                                'result_value': t.get('result_value', ''),
+                                'interpretation_text': t.get('interpretation_text', ''),
+                            }
+                        )
+                    else:
+                        ReportTest.objects.get_or_create(
+                            report=report,
+                            test_name=t.get('test_name', ''),
+                            defaults={
+                                'test_method': t.get('test_method', 'ELISA'),
+                                'result_value': t.get('result_value', ''),
+                                'interpretation_text': t.get('interpretation_text', ''),
+                            }
+                        )
+            logger.info("Restored Reports and ReportTests from Firebase Firestore.")
 
         # 3. Restore PublicReportAccess if DB is empty
         if not PublicReportAccess.objects.exists():
@@ -267,12 +279,12 @@ def restore_data_from_firebase():
 
 def ensure_database_hydrated():
     """
-    Checks if local database has reports, public access, and visitor records.
+    Checks if local database has reports, tests, public access, and visitor records.
     If empty (e.g. after container restart), auto-restores data from Firebase Firestore.
     """
     try:
-        from reports.models import Report, PublicReportAccess, Visitor
-        if not Report.objects.exists() or not PublicReportAccess.objects.exists() or not Visitor.objects.exists():
+        from reports.models import Report, ReportTest, PublicReportAccess, Visitor
+        if not Report.objects.exists() or not ReportTest.objects.exists() or not PublicReportAccess.objects.exists() or not Visitor.objects.exists():
             restore_data_from_firebase()
     except Exception as e:
         logger.error(f"Auto-hydration check error: {e}")
