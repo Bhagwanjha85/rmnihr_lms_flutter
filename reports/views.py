@@ -2137,6 +2137,7 @@ def public_report_search(request):
     Public Patient Report Portal accessible without login.
     Patients enter Lab ID, Age, Age Unit (Days/Months/Years), and Gender to search, view, and download their report.
     """
+    reports_list = []
     report = None
     searched = False
     error_message = None
@@ -2159,10 +2160,12 @@ def public_report_search(request):
                     age_value=age_val_int,
                     age_unit=age_unit,
                     sex=sex
-                )
-                report = matched_reports.first()
-                if report:
-                    # Record unique public report access for this lab_id (no proxy/duplicate counts)
+                ).order_by('-created_at')
+                
+                reports_list = list(matched_reports)
+                if reports_list:
+                    report = reports_list[0]
+                    # Record unique public report access for this lab_id
                     from reports.models import PublicReportAccess
                     PublicReportAccess.objects.get_or_create(lab_id=report.lab_id.strip().upper())
                 else:
@@ -2171,22 +2174,21 @@ def public_report_search(request):
                 error_message = "Invalid age entered. Please enter a valid number for age."
 
     template_config = TemplateConfig.get_solo()
-    from reports.models import PublicReportAccess
-    total_reports_count = PublicReportAccess.objects.count()
+    total_reports_count = Report.objects.count()
 
-    formatted_receiving_date = ""
-    formatted_reporting_date = ""
-    sex_display = ""
-    if report:
-        if report.receiving_date:
-            formatted_receiving_date = report.receiving_date.strftime('%d/%m/%Y')
-        if report.reporting_date:
-            formatted_reporting_date = report.reporting_date.strftime('%d/%m/%Y')
-        sex_map = {'M': 'MALE', 'F': 'FEMALE', 'O': 'OTHER'}
-        sex_display = sex_map.get(report.sex, report.sex)
+    sex_map = {'M': 'MALE', 'F': 'FEMALE', 'O': 'OTHER'}
+    for rep in reports_list:
+        rep.formatted_receiving_date = rep.receiving_date.strftime('%d/%m/%Y') if rep.receiving_date else ""
+        rep.formatted_reporting_date = rep.reporting_date.strftime('%d/%m/%Y') if rep.reporting_date else ""
+        rep.sex_display = sex_map.get(rep.sex, rep.sex)
+
+    formatted_receiving_date = report.formatted_receiving_date if report else ""
+    formatted_reporting_date = report.formatted_reporting_date if report else ""
+    sex_display = report.sex_display if report else ""
 
     context = {
         'report': report,
+        'reports_list': reports_list,
         'searched': searched,
         'error_message': error_message,
         'lab_id': lab_id,

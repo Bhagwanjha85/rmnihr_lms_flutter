@@ -1272,7 +1272,220 @@
         {% endif %}
 
         <!-- READ-ONLY REPORT DISPLAY -->
-        {% if report %}
+        {% if reports_list %}
+        {% for report in reports_list %}
+        <div class="report-section" style="margin-bottom: 30px;">
+            <!-- ACTION BAR -->
+            <div class="report-actions-bar no-print">
+                <div class="report-status-badge">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                    Verified Hospital Report Found {% if reports_list|length > 1 %}(Report {{ forloop.counter }} of {{ reports_list|length }}){% endif %}
+                </div>
+                <div class="action-btns">
+                    {% if forloop.first %}
+                    <a href="{% url 'public_report_search' %}" class="btn-reset">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="1 4 1 10 7 10"></polyline>
+                            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                        </svg>
+                        New Search
+                    </a>
+                    {% endif %}
+                    <button onclick="window.print()" class="btn-print">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                            <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                            <rect x="6" y="14" width="12" height="8"></rect>
+                        </svg>
+                        Download Report PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- OFFICIAL PRINTABLE REPORT CONTAINER -->
+            <div class="printable-report-area">
+                <!-- REPORT HEADER -->
+                <div class="report-header-section">
+                    <div class="report-logo-box">
+                        {% if template_config.logo %}
+                        <img src="{{ template_config.logo.image_base64 }}" alt="{{ template_config.logo.name }}">
+                        {% else %}
+                        <img src="{% static 'logo.png' %}" alt="ICMR-RMNIHR Logo" onerror="this.style.display='none';">
+                        {% endif %}
+                    </div>
+                    <div class="dept-main-title">{{ template_config.dept_main|default:"Viral Research & Diagnostic Laboratories" }}</div>
+                    <div class="dept-sub-title">{{ template_config.dept_sub|default:"Department of Virology" }}</div>
+                    <div class="dept-sponsor-text">{{ template_config.dept_sponsor|default:"(Dept. of Health Research Sponsored Medical College Level VRDL)" }}</div>
+                    <div class="dept-address-text">{{ template_config.dept_address|default:"Agamkuan, Patna, Bihar – 800007" }}</div>
+                </div>
+
+                <hr class="divider-thick">
+
+                <!-- PATIENT INFORMATION -->
+                <div class="section-badge-tag">Patient Information</div>
+                <div class="patient-table-wrap">
+                    <table class="patient-table">
+                        <tr>
+                            <td class="lbl">Lab ID</td>
+                            <td class="val">{{ report.lab_id }}</td>
+                            <td class="spacer"></td>
+                            <td class="lbl">Receiving Date</td>
+                            <td class="val">{{ report.formatted_receiving_date|default:formatted_receiving_date }}</td>
+                        </tr>
+                        <tr>
+                            <td class="lbl">Patient Name</td>
+                            <td class="val">{{ report.patient_name|title }}</td>
+                            <td class="spacer"></td>
+                            <td class="lbl">Reporting Date</td>
+                            <td class="val">{{ report.formatted_reporting_date|default:formatted_reporting_date }}</td>
+                        </tr>
+                        <tr>
+                            <td class="lbl">Age</td>
+                            <td class="val">{{ report.age_value }} {{ report.get_age_unit_display }}</td>
+                            <td class="spacer"></td>
+                            <td class="lbl">Sex</td>
+                            <td class="val">{{ report.sex_display|default:sex_display }}</td>
+                        </tr>
+                        <tr>
+                            <td class="lbl">Ref. By</td>
+                            <td class="val">{{ report.ref_by }}</td>
+                            <td class="spacer"></td>
+                            <td class="lbl">Sample Type</td>
+                            <td class="val">{{ report.sample_type }}</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <hr class="divider-thick" style="margin-top:10px;">
+
+                <!-- TEST RESULTS -->
+                <div class="section-badge-tag">Test Results</div>
+
+                {% regroup report.tests.all|dictsort:"test_method" by test_method as test_groups %}
+                {% for group in test_groups %}
+                <div style="margin-top: 10px; margin-bottom: 6px;">
+                    <h3 style="font-size: 10pt; font-weight: bold; color: #1b285c; margin-bottom: 6px;">
+                        Method: {{ group.grouper }}
+                    </h3>
+                    <div class="results-table-wrap">
+                        <table class="results-table">
+                            <thead>
+                                <tr>
+                                    {% if group.grouper|upper == 'RAPID' %}
+                                    <th style="text-align:left; width: 70%;">Test / Parameter Name</th>
+                                    <th style="text-align:right; width: 30%;">Status</th>
+                                    {% elif group.grouper|upper == 'RT-PCR' %}
+                                        {% if report.has_rtpcr_value %}
+                                        <th style="text-align:left; width: 50%;">Test / Parameter Name</th>
+                                        <th style="text-align:center; width: 20%;">Result Value</th>
+                                        <th style="text-align:right; width: 30%;">Status</th>
+                                        {% else %}
+                                        <th style="text-align:left; width: 70%;">Test / Parameter Name</th>
+                                        <th style="text-align:right; width: 30%;">Status</th>
+                                        {% endif %}
+                                    {% else %}
+                                    <th style="text-align:left; width: 35%;">Test / Parameter Name</th>
+                                    <th style="text-align:center; width: 30%;">Interpretation Range</th>
+                                    <th style="text-align:center; width: 15%;">Result Value</th>
+                                    <th style="text-align:right; width: 20%;">Status</th>
+                                    {% endif %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for test in group.list %}
+                                <tr>
+                                    <td class="test-name-cell">{{ test.test_name }}</td>
+                                    {% if group.grouper|upper == 'RAPID' %}
+                                    <td class="status-cell">
+                                        {{ test.interpretation_text|upper }}
+                                    </td>
+                                    {% elif group.grouper|upper == 'RT-PCR' %}
+                                        {% if report.has_rtpcr_value %}
+                                        <td class="result-val-cell">
+                                            {{ test.result_value|default:"-" }}
+                                        </td>
+                                        <td class="status-cell">
+                                            {{ test.interpretation_text|upper }}
+                                        </td>
+                                        {% else %}
+                                        <td class="status-cell">
+                                            {{ test.interpretation_text|upper }}
+                                        </td>
+                                        {% endif %}
+                                    {% else %}
+                                    <td class="interp-range-cell">
+                                        {{ test.interpretation_range|safe }}
+                                    </td>
+                                    <td class="result-val-cell">
+                                        {{ test.result_value }}
+                                    </td>
+                                    <td class="status-cell">
+                                        {{ test.interpretation_text|upper }}
+                                    </td>
+                                    {% endif %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endfor %}
+
+                <!-- SIGNATURES -->
+                <div class="signature-row">
+                    <div class="sig-block">
+                        <div class="sig-space">
+                            {% if report.show_prepared_by %}
+                            <svg width="96" height="36" viewBox="0 0 96 38">
+                                <path d="M8,24 C18,24 22,11 28,14 C34,17 30,27 36,24 C42,21 43,14 48,17 C53,20 50,27 58,24 C63,21 72,19 82,21" fill="none" stroke="#003df5" stroke-width="1.7" stroke-linecap="round" />
+                                <path d="M18,21 Q40,24 68,22" fill="none" stroke="#003df5" stroke-width=".9" stroke-linecap="round" />
+                            </svg>
+                            {% endif %}
+                        </div>
+                        <div class="sig-line">{{ report.prepared_by_name }}</div>
+                    </div>
+                    <div class="sig-block">
+                        <div class="sig-space">
+                            {% if report.show_technician %}
+                            <svg width="96" height="36" viewBox="0 0 96 38">
+                                <path d="M12,21 C18,9 30,7 36,19 C42,31 33,34 43,21 C53,9 58,11 63,21 C68,31 73,29 83,24" fill="none" stroke="#003df5" stroke-width="1.7" stroke-linecap="round" />
+                            </svg>
+                            {% endif %}
+                        </div>
+                        <div class="sig-line">{{ report.technician_name }}</div>
+                    </div>
+                    <div class="sig-block">
+                        <div class="sig-space">
+                            {% if report.show_scientist %}
+                            <svg width="96" height="36" viewBox="0 0 96 38">
+                                <path d="M10,27 C16,19 20,11 26,14 C32,17 28,31 36,23 C44,15 48,17 53,25 C58,33 66,21 76,27 C80,29 86,24 90,19" fill="none" stroke="#003df5" stroke-width="1.7" stroke-linecap="round" />
+                            </svg>
+                            {% endif %}
+                        </div>
+                        <div class="sig-line">{{ report.scientist_name }}</div>
+                    </div>
+                    <div class="sig-block">
+                        <div class="sig-space">
+                            {% if report.show_vc %}
+                            <img src="{% static 'signature_ic.png' %}" alt="Signature of I/C">
+                            {% endif %}
+                        </div>
+                        <div class="sig-line">{% if report.vc_title == 'Signature of VC' %}Signature of I/C{% else %}{{ report.vc_title }}{% endif %}</div>
+                        <div class="sig-subname">({{ report.vc_name }})</div>
+                    </div>
+                </div>
+
+                <!-- FOOTER NOTE -->
+                <div class="report-notes">
+                    <strong>Note:</strong> {{ report.notes }}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        {% elif report %}
         <div class="report-section">
             <!-- ACTION BAR -->
             <div class="report-actions-bar no-print">
