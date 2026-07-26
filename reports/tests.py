@@ -134,7 +134,7 @@ class TestConfigBackupRestoreTests(TestCase):
             post_delete.connect(handle_test_config_write, sender=TestConfig)
             
             # Call restore
-            reports.backup_utils.restore_test_configs_from_backup_if_needed()
+            reports.backup_utils.restore_test_configs_from_backup_if_needed(force=True)
             
             # Verify it got restored successfully
             self.assertEqual(TestConfig.objects.count(), 1)

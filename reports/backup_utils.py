@@ -25,6 +25,26 @@ def save_test_configs_to_backup():
     except Exception as e:
         print(f"Error saving test configs to backup: {e}")
 
-def restore_test_configs_from_backup_if_needed():
-    # Automatic creation of test configs disabled. Only superadmin can create test configs.
-    pass
+def restore_test_configs_from_backup_if_needed(force=False):
+    # Automatic restoration on startup is disabled.
+    # Restores only if explicitly forced (e.g., during administrative restore or test runner).
+    if not force:
+        return
+    if os.path.exists(BACKUP_FILE_PATH):
+        try:
+            from reports.models import TestConfig
+            with open(BACKUP_FILE_PATH, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            for item in data:
+                TestConfig.objects.get_or_create(
+                    test_name=item.get('test_name'),
+                    test_method=item.get('test_method'),
+                    defaults={
+                        'cutoff_value': item.get('cutoff_value'),
+                        'cutoff_value_upper': item.get('cutoff_value_upper'),
+                        'result_type': item.get('result_type', 'numeric'),
+                        'custom_options': item.get('custom_options')
+                    }
+                )
+        except Exception as e:
+            print(f"Error restoring test configs: {e}")

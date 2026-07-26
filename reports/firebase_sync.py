@@ -79,7 +79,9 @@ def sync_report_to_firebase(report):
         }
 
         tests_data = []
-        for test in report.tests.all():
+        from reports.models import ReportTest
+        tests = ReportTest.objects.filter(report_id=report.id)
+        for test in tests:
             tests_data.append({
                 'id': test.id,
                 'test_method': getattr(test, 'test_method', ''),

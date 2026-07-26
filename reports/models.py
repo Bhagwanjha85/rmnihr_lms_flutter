@@ -57,6 +57,110 @@ class Report(models.Model):
         ordering = ['-created_at']
 
 
+def determine_interpretation(test_name, test_method, result_value, config=None):
+    if result_value is None or str(result_value).strip() == '':
+        return ""
+
+    res_str = str(result_value).strip()
+    val_clean = res_str.lower()
+    
+    qualitative_mapping = {
+        'positive': 'Positive',
+        'pos': 'Positive',
+        '+': 'Positive',
+        '(+)': 'Positive',
+        'p': 'Positive',
+        'reactive': 'Reactive',
+        'react': 'Reactive',
+        'r': 'Reactive',
+        'negative': 'Negative',
+        'neg': 'Negative',
+        '-': 'Negative',
+        '(-)': 'Negative',
+        'n': 'Negative',
+        'non-reactive': 'Non-Reactive',
+        'nonreactive': 'Non-Reactive',
+        'non reactive': 'Non-Reactive',
+        'nr': 'Non-Reactive',
+        'equivocal': 'Equivocal',
+        'eq': 'Equivocal',
+        '+/-': 'Equivocal',
+        '(+/-)': 'Equivocal',
+        'invalid': 'Invalid',
+    }
+    
+    name_lower = (test_name or '').lower()
+    is_reactive_test = any(x in name_lower for x in ['hbs', 'hcv', 'antibody', 'ag', 'reactive'])
+
+    # 1. Check qualitative mapping first
+    if val_clean in qualitative_mapping:
+        interp = qualitative_mapping[val_clean]
+        if is_reactive_test:
+            if interp == 'Positive':
+                return 'Reactive'
+            elif interp == 'Negative':
+                return 'Non-Reactive'
+        return interp
+
+    # 2. Check TestConfig rule if provided
+    if config:
+        result_type = config.get('result_type') if isinstance(config, dict) else getattr(config, 'result_type', 'numeric')
+        cutoff_val = config.get('cutoff_value') if isinstance(config, dict) else getattr(config, 'cutoff_value', None)
+        cutoff_val_upper = config.get('cutoff_value_upper') if isinstance(config, dict) else getattr(config, 'cutoff_value_upper', None)
+
+        if result_type == 'numeric':
+            try:
+                val = float(res_str)
+                if cutoff_val_upper is not None and cutoff_val is not None:
+                    if val < cutoff_val:
+                        return "Non-Reactive" if is_reactive_test else "Negative"
+                    elif val > cutoff_val_upper:
+                        return "Reactive" if is_reactive_test else "Positive"
+                    else:
+                        return "Equivocal"
+                elif cutoff_val is not None:
+                    if val >= cutoff_val:
+                        return "Reactive" if is_reactive_test else "Positive"
+                    else:
+                        return "Non-Reactive" if is_reactive_test else "Negative"
+            except ValueError:
+                pass
+        elif result_type in ['positive_negative', 'select', 'reactive_non_reactive', 'custom_dropdown']:
+            if val_clean in qualitative_mapping:
+                return qualitative_mapping[val_clean]
+            return res_str
+
+    # 3. Universal numerical evaluation fallback
+    try:
+        val = float(res_str)
+        if 'hbs' in name_lower or 'hbsag' in name_lower:
+            return "Reactive" if val >= 0.191 else "Non-Reactive"
+        elif 'hcv' in name_lower:
+            return "Reactive" if val >= 0.361 else "Non-Reactive"
+        elif 'hiv' in name_lower:
+            return "Reactive" if val >= 1.0 else "Non-Reactive"
+        else:
+            method_upper = (test_method or '').upper()
+            if method_upper == 'ELISA' or any(x in name_lower for x in ['igm', 'igg', 'dengue', 'chik', 'je', 'measles', 'mumps', 'rubella', 'scrub']):
+                if val < 9.0:
+                    return "Negative"
+                elif val > 11.0:
+                    return "Positive"
+                else:
+                    return "Equivocal"
+            else:
+                if val >= 1.0:
+                    return "Positive"
+                elif val < 0.9:
+                    return "Negative"
+                else:
+                    return "Equivocal"
+    except ValueError:
+        pass
+
+    return res_str.title() if res_str else ""
+
+
 class ReportTest(models.Model):
     TEST_CHOICES = [
         ('Anti-HBc IgM', 'Anti-HBc IgM'),
@@ -148,104 +252,14 @@ class ReportTest(models.Model):
 
     def save(self, *args, **kwargs):
         method = (self.test_method or '').upper()
-        name = self.test_name
-        qualitative_mapping = {
-            'positive': 'Positive',
-            'negative': 'Negative',
-            'equivocal': 'Equivocal',
-            'invalid': 'Invalid',
-            'reactive': 'Reactive',
-            'non-reactive': 'Non-Reactive',
-            'nonreactive': 'Non-Reactive'
-        }
-        
-        # Normalize interpretation if it is not set and result_value is qualitative
-        if not self.interpretation_text and self.result_value:
-            val_clean = str(self.result_value).strip().lower()
-            if val_clean in qualitative_mapping:
-                self.interpretation_text = qualitative_mapping[val_clean]
-
-        # Check database configurations first
-        from reports.backup_utils import restore_test_configs_from_backup_if_needed
-        restore_test_configs_from_backup_if_needed()
+        name = self.test_name or ''
         config = TestConfig.objects.filter(test_name=name, test_method=method).first()
-        if config:
-            if config.result_type == 'numeric' and self.result_value:
-                try:
-                    val = float(self.result_value)
-                    if config.cutoff_value_upper is not None:
-                        if val < config.cutoff_value:
-                            self.interpretation_text = "Negative"
-                        elif val > config.cutoff_value_upper:
-                            self.interpretation_text = "Positive"
-                        else:
-                            self.interpretation_text = "Equivocal"
-                    elif config.cutoff_value is not None:
-                        if val >= config.cutoff_value:
-                            if any(x in name.lower() for x in ['hbs', 'hcv', 'antibody', 'ag', 'reactive']):
-                                self.interpretation_text = "Reactive"
-                            else:
-                                self.interpretation_text = "Positive"
-                        else:
-                            if any(x in name.lower() for x in ['hbs', 'hcv', 'antibody', 'ag', 'reactive']):
-                                self.interpretation_text = "Non-Reactive"
-                            else:
-                                self.interpretation_text = "Negative"
-                except ValueError:
-                    val_clean = str(self.result_value).strip().lower()
-                    if val_clean in qualitative_mapping:
-                        self.interpretation_text = qualitative_mapping[val_clean]
-            elif config.result_type in ['positive_negative', 'select', 'reactive_non_reactive', 'custom_dropdown']:
-                if not self.interpretation_text and self.result_value:
-                    val_clean = str(self.result_value).strip().lower()
-                    if val_clean in qualitative_mapping:
-                        self.interpretation_text = qualitative_mapping[val_clean]
-                    else:
-                        self.interpretation_text = self.result_value
-            super().save(*args, **kwargs)
-            return
-
-        # Fallback to existing hardcoded rules
-        if method == 'ELISA':
-            if self.result_value:
-                try:
-                    val = float(self.result_value)
-                    if self.test_name == 'HBsAg':
-                        if val >= 0.191:
-                            self.interpretation_text = "Reactive"
-                        else:
-                            self.interpretation_text = "Non-Reactive"
-                    elif self.test_name == 'HCV Antibody':
-                        if val >= 0.361:
-                            self.interpretation_text = "Reactive"
-                        else:
-                            self.interpretation_text = "Non-Reactive"
-                    else:
-                        if val < 9.0:
-                            self.interpretation_text = "Negative"
-                        elif val > 11.0:
-                            self.interpretation_text = "Positive"
-                        else:
-                            self.interpretation_text = "Equivocal"
-                except ValueError:
-                    val_clean = str(self.result_value).strip().lower()
-                    if val_clean in qualitative_mapping:
-                        self.interpretation_text = qualitative_mapping[val_clean]
-        elif method == 'RAPID':
-            if not self.interpretation_text and self.result_value:
-                val_clean = str(self.result_value).strip().lower()
-                if val_clean in qualitative_mapping:
-                    self.interpretation_text = qualitative_mapping[val_clean]
-        elif method == 'RT-PCR':
-            if not self.interpretation_text and self.result_value:
-                val_clean = str(self.result_value).strip().lower()
-                if val_clean in qualitative_mapping:
-                    self.interpretation_text = qualitative_mapping[val_clean]
-        else:
-            if not self.interpretation_text and self.result_value:
-                val_clean = str(self.result_value).strip().lower()
-                if val_clean in qualitative_mapping:
-                    self.interpretation_text = qualitative_mapping[val_clean]
+        
+        if not self.interpretation_text:
+            calculated_interp = determine_interpretation(name, method, self.result_value, config=config)
+            if calculated_interp:
+                self.interpretation_text = calculated_interp
+            
         super().save(*args, **kwargs)
 
     def __str__(self):

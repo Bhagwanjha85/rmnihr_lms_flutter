@@ -1,1 +1,122 @@
-[]
+[
+    {
+        "test_name": "Test Config 0",
+        "test_method": "ELISA",
+        "cutoff_value": 1.0,
+        "cutoff_value_upper": null,
+        "result_type": "numeric",
+        "custom_options": null
+    },
+    {
+        "test_name": "Test Config 1",
+        "test_method": "ELISA",
+        "cutoff_value": 1.0,
+        "cutoff_value_upper": null,
+        "result_type": "numeric",
+        "custom_options": null
+    },
+    {
+        "test_name": "Test Config 2",
+        "test_method": "ELISA",
+        "cutoff_value": 1.0,
+        "cutoff_value_upper": null,
+        "result_type": "numeric",
+        "custom_options": null
+    },
+    {
+        "test_name": "Test Config 3",
+        "test_method": "ELISA",
+        "cutoff_value": 1.0,
+        "cutoff_value_upper": null,
+        "result_type": "numeric",
+        "custom_options": null
+    },
+    {
+        "test_name": "Test Config 4",
+        "test_method": "ELISA",
+        "cutoff_value": 1.0,
+        "cutoff_value_upper": null,
+        "result_type": "numeric",
+        "custom_options": null
+    },
+    {
+        "test_name": "Test Config 5",
+        "test_method": "ELISA",
+        "cutoff_value": 1.0,
+        "cutoff_value_upper": null,
+        "result_type": "numeric",
+        "custom_options": null
+    },
+    {
+        "test_name": "Test Config 6",
+        "test_method": "ELISA",
+        "cutoff_value": 1.0,
+        "cutoff_value_upper": null,
+        "result_type": "numeric",
+        "custom_options": null
+    },
+    {
+        "test_name": "Test Config 7",
+        "test_method": "ELISA",
+        "cutoff_value": 1.0,
+        "cutoff_value_upper": null,
+        "result_type": "numeric",
+        "custom_options": null
+    },
+    {
+        "test_name": "Test Config 8",
+        "test_method": "ELISA",
+        "cutoff_value": 1.0,
+        "cutoff_value_upper": null,
+        "result_type": "numeric",
+        "custom_options": null
+    },
+    {
+        "test_name": "Test Config 9",
+        "test_method": "ELISA",
+        "cutoff_value": 1.0,
+        "cutoff_value_upper": null,
+        "result_type": "numeric",
+        "custom_options": null
+    },
+    {
+        "test_name": "Test Config 10",
+        "test_method": "ELISA",
+        "cutoff_value": 1.0,
+        "cutoff_value_upper": null,
+        "result_type": "numeric",
+        "custom_options": null
+    },
+    {
+        "test_name": "Test Config 11",
+        "test_method": "ELISA",
+        "cutoff_value": 1.0,
+        "cutoff_value_upper": null,
+        "result_type": "numeric",
+        "custom_options": null
+    },
+    {
+        "test_name": "Test Config 12",
+        "test_method": "ELISA",
+        "cutoff_value": 1.0,
+        "cutoff_value_upper": null,
+        "result_type": "numeric",
+        "custom_options": null
+    },
+    {
+        "test_name": "Test Config 13",
+        "test_method": "ELISA",
+        "cutoff_value": 1.0,
+        "cutoff_value_upper": null,
+        "result_type": "numeric",
+        "custom_options": null
+    },
+    {
+        "test_name": "Test Config 14",
+        "test_method": "ELISA",
+        "cutoff_value": 1.0,
+        "cutoff_value_upper": null,
+        "result_type": "numeric",
+        "custom_options": null
+    }
+]

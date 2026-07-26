@@ -665,14 +665,6 @@ def dashboard_analytics(request):
     end_date = request.GET.get('end_date', '')
     test_filter = request.GET.get('test_filter', '')
     
-    # Construct a cache key based on the request query params and role
-    cache_key_components = f"analytics_{query}_{start_date}_{end_date}_{test_filter}_{profile.is_super_admin}"
-    cache_key = "dash_an_" + hashlib.md5(cache_key_components.encode('utf-8')).hexdigest()
-    
-    cached_data = cache.get(cache_key)
-    if cached_data:
-        return JsonResponse(cached_data)
-        
     reports = Report.objects.all()
     
     if query:
@@ -837,9 +829,6 @@ def dashboard_analytics(request):
         'sex_stats': sex_stats,
         'trend_datasets': trend_datasets,
     }
-    
-    # Cache for 1 hour (invalidated on write)
-    cache.set(cache_key, response_data, 3600)
     
     return JsonResponse(response_data)
 
@@ -1477,90 +1466,16 @@ def bulk_upload(request):
                         created_reports = Report.objects.bulk_create(reports_to_create, batch_size=500)
                         
                         tests_to_create = []
-                        qualitative_mapping = {
-                            'positive': 'Positive',
-                            'negative': 'Negative',
-                            'equivocal': 'Equivocal',
-                            'invalid': 'Invalid',
-                            'reactive': 'Reactive',
-                            'non-reactive': 'Non-Reactive',
-                            'nonreactive': 'Non-Reactive'
-                        }
+                        from .models import determine_interpretation
                         
                         for report_obj, tests_info in zip(created_reports, row_tests_data):
                             for info in tests_info:
                                 name = info['test_name']
                                 res_val = info['result_value']
                                 method = info['test_method'].upper()
-                                
-                                interpretation_text = ""
-                                if res_val:
-                                    val_clean = str(res_val).strip().lower()
-                                    if val_clean in qualitative_mapping:
-                                        interpretation_text = qualitative_mapping[val_clean]
-                                
-                                # Check database configurations first
                                 config = configs_dict.get(method, {}).get(name)
-                                if config:
-                                    if config['result_type'] == 'numeric' and res_val:
-                                        try:
-                                            val = float(res_val)
-                                            if config['cutoff_value_upper'] is not None:
-                                                if val < config['cutoff_value']:
-                                                    interpretation_text = "Negative"
-                                                elif val > config['cutoff_value_upper']:
-                                                    interpretation_text = "Positive"
-                                                else:
-                                                    interpretation_text = "Equivocal"
-                                            elif config['cutoff_value'] is not None:
-                                                if val >= config['cutoff_value']:
-                                                    if any(x in name.lower() for x in ['hbs', 'hcv', 'antibody', 'ag', 'reactive']):
-                                                        interpretation_text = "Reactive"
-                                                    else:
-                                                        interpretation_text = "Positive"
-                                                else:
-                                                    if any(x in name.lower() for x in ['hbs', 'hcv', 'antibody', 'ag', 'reactive']):
-                                                        interpretation_text = "Non-Reactive"
-                                                    else:
-                                                        interpretation_text = "Negative"
-                                        except ValueError:
-                                            val_clean = str(res_val).strip().lower()
-                                            if val_clean in qualitative_mapping:
-                                                interpretation_text = qualitative_mapping[val_clean]
-                                    elif config['result_type'] in ['positive_negative', 'select', 'reactive_non_reactive', 'custom_dropdown']:
-                                        if not interpretation_text and res_val:
-                                            val_clean = str(res_val).strip().lower()
-                                            if val_clean in qualitative_mapping:
-                                                interpretation_text = qualitative_mapping[val_clean]
-                                            else:
-                                                interpretation_text = res_val
-                                else:
-                                    # Fallback to existing hardcoded rules
-                                    if method == 'ELISA':
-                                        if res_val:
-                                            try:
-                                                val = float(res_val)
-                                                if name == 'HBsAg':
-                                                    if val >= 0.191:
-                                                        interpretation_text = "Reactive"
-                                                    else:
-                                                        interpretation_text = "Non-Reactive"
-                                                elif name == 'HCV Antibody':
-                                                    if val >= 0.361:
-                                                        interpretation_text = "Reactive"
-                                                    else:
-                                                        interpretation_text = "Non-Reactive"
-                                                else:
-                                                    if val < 9.0:
-                                                        interpretation_text = "Negative"
-                                                    elif val > 11.0:
-                                                        interpretation_text = "Positive"
-                                                    else:
-                                                        interpretation_text = "Equivocal"
-                                            except ValueError:
-                                                val_clean = str(res_val).strip().lower()
-                                                if val_clean in qualitative_mapping:
-                                                    interpretation_text = qualitative_mapping[val_clean]
+                                
+                                interpretation_text = determine_interpretation(name, method, res_val, config=config)
                                                     
                                 tests_to_create.append(ReportTest(
                                     report=report_obj,
@@ -1572,13 +1487,16 @@ def bulk_upload(request):
                                 
                         ReportTest.objects.bulk_create(tests_to_create, batch_size=1000)
                         
-                        # Sync bulk created reports to Firebase Firestore
+                    # Sync bulk created reports to Firebase Firestore after transaction commits
+                    try:
                         from reports.firebase_sync import sync_report_to_firebase
                         for report_obj in created_reports:
                             sync_report_to_firebase(report_obj)
-                        
-                        from django.core.cache import cache
-                        cache.clear()
+                    except Exception as sync_err:
+                        logger.error(f"Bulk upload Firebase sync error: {sync_err}")
+                    
+                    from django.core.cache import cache
+                    cache.clear()
                         
                 return redirect('dashboard')
             except Exception as e:
