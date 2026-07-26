@@ -3,66 +3,126 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&family=Signature&display=swap');
 
 :root {
-    --primary: #000000;
-    --primary-light: #18181b;
-    --secondary: #27272a;
-    --secondary-light: #3f3f46;
-    --accent: #000000;
+    --background: lab(100% 0 0);
+    --foreground: lab(2.75381% 0 0);
+    --card: lab(100% 0 0);
+    --card-foreground: lab(2.75381% 0 0);
+    --popover: lab(100% 0 0);
+    --popover-foreground: lab(2.75381% 0 0);
+    --primary: lab(7.78201% -.0000149012 0);
+    --primary-foreground: lab(98.26% 0 0);
+    --secondary: lab(96.52% -.0000298023 .0000119209);
+    --secondary-foreground: lab(7.78201% -.0000149012 0);
+    --muted: lab(96.52% -.0000298023 .0000119209);
+    --muted-foreground: lab(48.496% 0 0);
+    --accent: lab(96.52% -.0000298023 .0000119209);
+    --accent-foreground: lab(7.78201% -.0000149012 0);
+    --destructive: lab(48.4493% 77.4328 61.5452);
+    --border: lab(90.952% 0 -.0000119209);
+    --input: lab(90.952% 0 -.0000119209);
+    --ring: lab(66.128% -.0000298023 .0000119209);
+    --chart-1: lab(84.92% 0 -.0000119209);
+    --chart-2: lab(48.496% 0 0);
+    --chart-3: lab(34.924% 0 0);
+    --chart-4: lab(27.036% 0 0);
+    --chart-5: lab(15.204% 0 -.00000596046);
+    --sidebar: lab(98.26% 0 0);
+    --sidebar-foreground: lab(2.75381% 0 0);
+    --sidebar-primary: lab(7.78201% -.0000149012 0);
+    --sidebar-primary-foreground: lab(98.26% 0 0);
+    --sidebar-accent: lab(96.52% -.0000298023 .0000119209);
+    --sidebar-accent-foreground: lab(7.78201% -.0000149012 0);
+    --sidebar-border: lab(90.952% 0 -.0000119209);
+    --sidebar-ring: lab(66.128% -.0000298023 .0000119209);
 
-    /* Light Theme - Clean Black & White */
-    --bg-main: #f8fafc;
-    --bg-gradient: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-    --bg-card: #ffffff;
-    --glass-border: #e2e8f0;
-    --text-main: #09090b;
-    --text-muted: #64748b;
-    --text-dark: #000000;
+    /* Enforce palette tokens */
+    --primary-light: var(--sidebar-primary);
+    --secondary-light: var(--muted);
+    --bg-main: var(--background);
+    --bg-gradient: var(--background);
+    --bg-card: var(--card);
+    --glass-border: var(--border);
+    --text-main: var(--foreground);
+    --text-muted: var(--muted-foreground);
+    --text-dark: var(--foreground);
 
-    --bg-input: #ffffff;
-    --border-input: #cbd5e1;
-    --text-input: #09090b;
-    --placeholder-input: #94a3b8;
+    --bg-input: var(--card);
+    --border-input: var(--input);
+    --text-input: var(--foreground);
+    --placeholder-input: var(--muted-foreground);
 
-    --border-color: #e2e8f0;
+    --border-color: var(--border);
     --border-radius: 6px;
     --box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.04);
     --box-shadow-hover: 0 8px 24px 0 rgba(0, 0, 0, 0.08);
 
-    --status-positive: #dc2626;
-    --status-positive-bg: #fef2f2;
-    --status-negative: #16a34a;
-    --status-negative-bg: #f0fdf4;
-    --status-equivocal: #ca8a04;
-    --status-equivocal-bg: #fefce8;
+    --status-positive: var(--destructive);
+    --status-positive-bg: var(--secondary);
+    --status-negative: var(--muted-foreground);
+    --status-negative-bg: var(--muted);
+    --status-equivocal: var(--muted-foreground);
+    --status-equivocal-bg: var(--accent);
 }
 
 [data-theme="dark"] {
-    --primary: #ffffff;
-    --primary-light: #e4e4e7;
-    --secondary: #27272a;
-    --secondary-light: #3f3f46;
-    --accent: #ffffff;
+    --background: lab(100% 0 0);
+    --foreground: lab(2.75381% 0 0);
+    --card: lab(100% 0 0);
+    --card-foreground: lab(2.75381% 0 0);
+    --popover: lab(100% 0 0);
+    --popover-foreground: lab(2.75381% 0 0);
+    --primary: lab(7.78201% -.0000149012 0);
+    --primary-foreground: lab(98.26% 0 0);
+    --secondary: lab(96.52% -.0000298023 .0000119209);
+    --secondary-foreground: lab(7.78201% -.0000149012 0);
+    --muted: lab(96.52% -.0000298023 .0000119209);
+    --muted-foreground: lab(48.496% 0 0);
+    --accent: lab(96.52% -.0000298023 .0000119209);
+    --accent-foreground: lab(7.78201% -.0000149012 0);
+    --destructive: lab(48.4493% 77.4328 61.5452);
+    --border: lab(90.952% 0 -.0000119209);
+    --input: lab(90.952% 0 -.0000119209);
+    --ring: lab(66.128% -.0000298023 .0000119209);
+    --chart-1: lab(84.92% 0 -.0000119209);
+    --chart-2: lab(48.496% 0 0);
+    --chart-3: lab(34.924% 0 0);
+    --chart-4: lab(27.036% 0 0);
+    --chart-5: lab(15.204% 0 -.00000596046);
+    --sidebar: lab(98.26% 0 0);
+    --sidebar-foreground: lab(2.75381% 0 0);
+    --sidebar-primary: lab(7.78201% -.0000149012 0);
+    --sidebar-primary-foreground: lab(98.26% 0 0);
+    --sidebar-accent: lab(96.52% -.0000298023 .0000119209);
+    --sidebar-accent-foreground: lab(7.78201% -.0000149012 0);
+    --sidebar-border: lab(90.952% 0 -.0000119209);
+    --sidebar-ring: lab(66.128% -.0000298023 .0000119209);
 
-    /* Dark Theme - High Contrast Deep Black */
-    --bg-main: #000000;
-    --bg-gradient: linear-gradient(135deg, #000000 0%, #09090b 100%);
-    --bg-card: #121215;
-    --glass-border: #3f3f46;
-    --text-main: #ffffff;
-    --text-muted: #e4e4e7;
-    --text-dark: #ffffff;
+    /* Enforce palette tokens for dark theme as requested */
+    --primary-light: var(--sidebar-primary);
+    --secondary-light: var(--muted);
+    --bg-main: var(--background);
+    --bg-gradient: var(--background);
+    --bg-card: var(--card);
+    --glass-border: var(--border);
+    --text-main: var(--foreground);
+    --text-muted: var(--muted-foreground);
+    --text-dark: var(--foreground);
 
-    --bg-input: #18181b;
-    --border-input: #3f3f46;
-    --text-input: #ffffff;
-    --placeholder-input: #a1a1aa;
+    --bg-input: var(--card);
+    --border-input: var(--input);
+    --text-input: var(--foreground);
+    --placeholder-input: var(--muted-foreground);
 
-    --border-color: #3f3f46;
-    --box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.8);
-    --box-shadow-hover: 0 8px 24px 0 rgba(0, 0, 0, 0.95);
-    --status-positive-bg: rgba(220, 38, 38, 0.25);
-    --status-negative-bg: rgba(22, 163, 74, 0.25);
-    --status-equivocal-bg: rgba(202, 138, 4, 0.25);
+    --border-color: var(--border);
+    --box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.04);
+    --box-shadow-hover: 0 8px 24px 0 rgba(0, 0, 0, 0.08);
+
+    --status-positive: var(--destructive);
+    --status-positive-bg: var(--secondary);
+    --status-negative: var(--muted-foreground);
+    --status-negative-bg: var(--muted);
+    --status-equivocal: var(--muted-foreground);
+    --status-equivocal-bg: var(--accent);
 }
 
 * {
