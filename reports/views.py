@@ -28,19 +28,10 @@ logger = logging.getLogger(__name__)
 
 
 def login_view(request):
-    """
-    Handle user login with username/email and password.
-    
-    Supports both regular admin login and super admin login (with passcode).
-    
-    After database migration, if the user database is empty, this view will
-    guide users to create a superuser using the management command.
-    
-    GET: Display login form
-    POST: Authenticate and log in user
-    """
     if request.user.is_authenticated:
         return redirect('dashboard')
+    
+    error = None
     
     if request.method == 'POST':
         username_or_email = request.POST.get('username', '').strip()
