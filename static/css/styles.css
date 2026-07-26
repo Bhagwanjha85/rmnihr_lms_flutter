@@ -38,31 +38,31 @@
 
 [data-theme="dark"] {
     --primary: #ffffff;
-    --primary-light: #f4f4f5;
+    --primary-light: #e4e4e7;
     --secondary: #27272a;
     --secondary-light: #3f3f46;
     --accent: #ffffff;
 
-    /* Dark Theme - Deep Black */
+    /* Dark Theme - High Contrast Deep Black */
     --bg-main: #000000;
     --bg-gradient: linear-gradient(135deg, #000000 0%, #09090b 100%);
     --bg-card: #121215;
-    --glass-border: #27272a;
-    --text-main: #f4f4f5;
-    --text-muted: #a1a1aa;
+    --glass-border: #3f3f46;
+    --text-main: #ffffff;
+    --text-muted: #e4e4e7;
     --text-dark: #ffffff;
 
     --bg-input: #18181b;
-    --border-input: #27272a;
-    --text-input: #f4f4f5;
-    --placeholder-input: #71717a;
+    --border-input: #3f3f46;
+    --text-input: #ffffff;
+    --placeholder-input: #a1a1aa;
 
-    --border-color: #27272a;
-    --box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.6);
-    --box-shadow-hover: 0 8px 24px 0 rgba(0, 0, 0, 0.8);
-    --status-positive-bg: rgba(220, 38, 38, 0.15);
-    --status-negative-bg: rgba(22, 163, 74, 0.15);
-    --status-equivocal-bg: rgba(202, 138, 4, 0.15);
+    --border-color: #3f3f46;
+    --box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.8);
+    --box-shadow-hover: 0 8px 24px 0 rgba(0, 0, 0, 0.95);
+    --status-positive-bg: rgba(220, 38, 38, 0.25);
+    --status-negative-bg: rgba(22, 163, 74, 0.25);
+    --status-equivocal-bg: rgba(202, 138, 4, 0.25);
 }
 
 * {
@@ -243,6 +243,90 @@ header.navbar {
     transform: translateY(-1px);
     box-shadow: var(--box-shadow);
     color: var(--primary);
+}
+
+.nav-btn-account {
+    background: #0f172a;
+    color: #ffffff !important;
+    border: 1px solid #1e293b;
+}
+
+.nav-btn-account:hover {
+    background: #1e293b;
+    color: #ffffff !important;
+}
+
+.nav-btn-superadmin {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-main) !important;
+}
+
+.nav-btn-superadmin:hover {
+    background: var(--bg-card);
+    color: var(--primary) !important;
+}
+
+.nav-btn-logout {
+    background: #dc2626;
+    color: #ffffff !important;
+    border: none;
+}
+
+.nav-btn-logout:hover {
+    background: #b91c1c;
+    color: #ffffff !important;
+}
+
+/* Dark theme high contrast button overrides */
+[data-theme="dark"] .nav-btn {
+    background: #121215;
+    color: #ffffff !important;
+    border: 1px solid #3f3f46;
+}
+
+[data-theme="dark"] .nav-btn:hover {
+    background: #27272a;
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .nav-btn-secondary {
+    background: #121215;
+    border: 1px solid #3f3f46;
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .nav-btn-secondary:hover {
+    background: #27272a;
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .nav-btn-account {
+    background: #18181b;
+    border: 1px solid #52525b;
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .nav-btn-account:hover {
+    background: #27272a;
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .nav-btn-superadmin {
+    background: #121215;
+    border: 1px solid #3f3f46;
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .nav-btn-superadmin:hover {
+    background: #27272a;
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .nav-btn-logout {
+    background: #991b1b;
+    border: 1px solid #ef4444;
+    color: #ffffff !important;
 }
 
 .main-content {
@@ -1393,4 +1477,122 @@ footer.app-footer {
 .footer-about-link:hover {
     color: var(--secondary-light) !important;
     transform: translateY(-1px);
+}
+
+/* ──────────────────────────────────────────────────── */
+/* GLOBAL DARK THEME HIGH CONTRAST OVERRIDES           */
+/* ──────────────────────────────────────────────────── */
+[data-theme="dark"] body {
+    background: #000000 !important;
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] h1,
+[data-theme="dark"] h2,
+[data-theme="dark"] h3,
+[data-theme="dark"] h4,
+[data-theme="dark"] h5,
+[data-theme="dark"] h6 {
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] p,
+[data-theme="dark"] label {
+    color: #f4f4f5 !important;
+}
+
+[data-theme="dark"] header.navbar {
+    background: #0d0d0f !important;
+    border-bottom: 1px solid #27272a !important;
+}
+
+[data-theme="dark"] .top-contact-bar {
+    background: #09090b !important;
+    border-bottom: 1px solid #27272a !important;
+    color: #f4f4f5 !important;
+}
+
+[data-theme="dark"] .top-contact-bar span,
+[data-theme="dark"] .top-contact-bar strong {
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .card,
+[data-theme="dark"] .stat-card,
+[data-theme="dark"] .test-builder-box,
+[data-theme="dark"] .auth-card {
+    background: #121215 !important;
+    border: 1px solid #27272a !important;
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .stat-info h3 {
+    color: #e4e4e7 !important;
+}
+
+[data-theme="dark"] .stat-value {
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .card-title {
+    color: #ffffff !important;
+    border-bottom-color: #27272a !important;
+}
+
+/* Form controls & inputs in dark theme */
+[data-theme="dark"] .form-control,
+[data-theme="dark"] input[type="text"],
+[data-theme="dark"] input[type="password"],
+[data-theme="dark"] input[type="number"],
+[data-theme="dark"] input[type="date"],
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+    background-color: #18181b !important;
+    border: 1px solid #3f3f46 !important;
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .form-control::placeholder,
+[data-theme="dark"] input::placeholder {
+    color: #a1a1aa !important;
+}
+
+/* Action buttons in dark theme */
+[data-theme="dark"] .btn-primary {
+    background: #18181b !important;
+    color: #ffffff !important;
+    border: 1px solid #52525b !important;
+}
+
+[data-theme="dark"] .btn-primary:hover {
+    background: #27272a !important;
+    color: #ffffff !important;
+    border-color: #ffffff !important;
+}
+
+[data-theme="dark"] .btn-accent {
+    background: #18181b !important;
+    color: #ffffff !important;
+    border: 1px solid #3f3f46 !important;
+}
+
+[data-theme="dark"] .btn-accent:hover {
+    background: #27272a !important;
+    color: #ffffff !important;
+}
+
+/* Data Table in dark theme */
+[data-theme="dark"] .data-table th {
+    background: #18181b !important;
+    color: #ffffff !important;
+    border-bottom: 1px solid #27272a !important;
+}
+
+[data-theme="dark"] .data-table td {
+    color: #f4f4f5 !important;
+    border-bottom: 1px solid #27272a !important;
+}
+
+[data-theme="dark"] .data-table tr:hover {
+    background: #18181b !important;
 }
