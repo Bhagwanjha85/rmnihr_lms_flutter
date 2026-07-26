@@ -562,6 +562,9 @@ def password_reset_otp_view(request):
 @login_required
 def dashboard(request):
     profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    from reports.firebase_sync import ensure_database_hydrated
+    ensure_database_hydrated()
+    
     query = request.GET.get('q', '')
     start_date = request.GET.get('start_date', '')
     end_date = request.GET.get('end_date', '')
@@ -2200,6 +2203,9 @@ def public_report_search(request):
     Public Patient Report Portal accessible without login.
     Patients enter Lab ID, Age, Age Unit (Days/Months/Years), and Gender to search, view, and download their report.
     """
+    from reports.firebase_sync import ensure_database_hydrated, sync_public_access_to_firebase
+    ensure_database_hydrated()
+
     reports_list = []
     report = None
     searched = False
@@ -2230,7 +2236,9 @@ def public_report_search(request):
                     report = reports_list[0]
                     # Record unique public report access for this lab_id
                     from reports.models import PublicReportAccess
-                    PublicReportAccess.objects.get_or_create(lab_id=report.lab_id.strip().upper())
+                    access_obj, created = PublicReportAccess.objects.get_or_create(lab_id=report.lab_id.strip().upper())
+                    if created:
+                        sync_public_access_to_firebase(access_obj)
                 else:
                     error_message = f"No report found matching Lab ID '{lab_id}'. Please check your Lab ID, Age, and Gender details."
             except (ValueError, TypeError):

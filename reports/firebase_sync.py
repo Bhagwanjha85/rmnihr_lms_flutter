@@ -136,16 +136,31 @@ def delete_config_from_firebase(config_id):
         logger.error(f"Error deleting test config {config_id} from Firebase: {e}")
 
 
+def sync_public_access_to_firebase(access_obj):
+    try:
+        client = get_firestore_client()
+        if not client:
+            return
+        doc_ref = client.collection('public_report_access').document(str(access_obj.lab_id))
+        data = {
+            'lab_id': access_obj.lab_id,
+            'accessed_at': serialize_val(getattr(access_obj, 'accessed_at', datetime.now())),
+        }
+        doc_ref.set(data, merge=True)
+    except Exception as e:
+        logger.error(f"Error syncing public report access {getattr(access_obj, 'lab_id', '')} to Firebase: {e}")
+
+
 def restore_data_from_firebase():
     """
-    Restores reports and test configs from Firebase Firestore if local Django database is empty on boot.
+    Restores reports, test configs, and public report access from Firebase Firestore if local Django database is empty on boot.
     """
     try:
         client = get_firestore_client()
         if not client:
             return
 
-        from reports.models import Report, ReportTest, TestConfig
+        from reports.models import Report, ReportTest, TestConfig, PublicReportAccess
 
         # 1. Restore TestConfigs if DB is empty
         if not TestConfig.objects.exists():
@@ -205,5 +220,30 @@ def restore_data_from_firebase():
                         }
                     )
             logger.info("Restored Reports from Firebase Firestore.")
+
+        # 3. Restore PublicReportAccess if DB is empty
+        if not PublicReportAccess.objects.exists():
+            access_docs = client.collection('public_report_access').stream()
+            for doc in access_docs:
+                d = doc.to_dict()
+                if not d or not d.get('lab_id'):
+                    continue
+                PublicReportAccess.objects.get_or_create(
+                    lab_id=d.get('lab_id').strip().upper()
+                )
+            logger.info("Restored PublicReportAccess from Firebase Firestore.")
     except Exception as e:
         logger.error(f"Error restoring data from Firebase Firestore: {e}")
+
+
+def ensure_database_hydrated():
+    """
+    Checks if local database has reports and public access records.
+    If empty (e.g. after container restart), auto-restores data from Firebase Firestore.
+    """
+    try:
+        from reports.models import Report, PublicReportAccess
+        if not Report.objects.exists() or not PublicReportAccess.objects.exists():
+            restore_data_from_firebase()
+    except Exception as e:
+        logger.error(f"Auto-hydration check error: {e}")
