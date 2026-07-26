@@ -42,16 +42,40 @@ def login_view(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
     
-    error = None
-    
     if request.method == 'POST':
         username_or_email = request.POST.get('username', '').strip()
         password_input = request.POST.get('password', '').strip()
         login_type = request.POST.get('login_type', 'admin').strip()
         passcode_input = request.POST.get('passcode', '').strip()
         
+        # Verify Captcha
+        turnstile_response = request.POST.get('cf-turnstile-response')
+        secret_key = getattr(settings, 'TURNSTILE_SECRET_KEY', '0x4AAAAAAD-SWhd8BlfR4eJCEAJSXgiKeVs')
+        
+        captcha_valid = False
+        if turnstile_response:
+            import urllib.request
+            import urllib.parse
+            import json
+            try:
+                verify_data = urllib.parse.urlencode({
+                    'secret': secret_key,
+                    'response': turnstile_response,
+                    'remoteip': request.META.get('REMOTE_ADDR', '')
+                }).encode('utf-8')
+                verify_req = urllib.request.Request('https://challenges.cloudflare.com/turnstile/v0/siteverify', data=verify_data)
+                with urllib.request.urlopen(verify_req, timeout=6) as v_res:
+                    v_json = json.loads(v_res.read().decode('utf-8'))
+                    if v_json.get('success'):
+                        captcha_valid = True
+            except Exception as e:
+                logger.error(f"Turnstile captcha verification error: {e}")
+
         # Input validation
-        if not username_or_email or not password_input:
+        if not captcha_valid:
+            error = 'Security Captcha verification failed. Please check the Captcha box and try again.'
+            log_authentication_event('login', username=username_or_email, status='failure', details='Captcha verification failed')
+        elif not username_or_email or not password_input:
             error = 'Please provide both username/email and password.'
             log_authentication_event('login', username=username_or_email, status='failure', details='Missing credentials')
         else:

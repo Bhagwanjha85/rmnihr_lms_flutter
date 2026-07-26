@@ -276,10 +276,11 @@ LOGGING = {
             'level': 'INFO',
             'propagate': False,
         },
-        'django.core.mail': {
-            'handlers': ['console', 'email_file'],
-            'level': 'DEBUG',
-            'propagate': False,
-        },
     },
 }
+
+# ─── Cloudflare Turnstile Captcha ───
+TURNSTILE_SITE_KEY = os.environ.get('TURNSTILE_SITE_KEY', '0x4AAAAAAD-SWgNcrKQ1rCAq')
+TURNSTILE_SECRET_KEY = os.environ.get('TURNSTILE_SECRET_KEY', '0x4AAAAAAD-SWhd8BlfR4eJCEAJSXgiKeVs')
+
+

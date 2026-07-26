@@ -1,6 +1,9 @@
 {% extends 'base.html' %}
 {% load static %}
 {% block title %}Login - RMNIHR Reporting System{% endblock %}
+{% block extra_head %}
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+{% endblock %}
 {% block content %}
 <style>
     /* Full screen login viewport */
@@ -330,6 +333,11 @@
                         <label class="login-label" for="passcode">Super Admin Passcode</label>
                         <input class="login-input" type="password" id="passcode" name="passcode"
                                placeholder="Enter Super Admin Passcode" autocomplete="off">
+                    </div>
+
+                    <!-- Cloudflare Turnstile Captcha -->
+                    <div class="login-field-group login-field-full" style="display: flex; justify-content: center; margin-top: 1rem; margin-bottom: 1rem;">
+                        <div class="cf-turnstile" data-sitekey="0x4AAAAAAD-SWgNcrKQ1rCAq" data-theme="light"></div>
                     </div>
                 </div>
 
