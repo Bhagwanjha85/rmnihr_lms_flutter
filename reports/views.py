@@ -1383,7 +1383,7 @@ def bulk_upload(request):
                             configs_dict['ALL'] = {}
                         configs_dict['ALL'][n_key] = configs_dict[m_key][n_key]
 
-                    reports_to_create = []
+                    reports_kwargs_list = []
                     row_tests_data = [] # List of lists: for each report, a list of test info dicts
                     
                     for row in rows[1:]:
@@ -1472,9 +1472,8 @@ def bulk_upload(request):
                         if rep_date:
                             report_kwargs['reporting_date'] = rep_date
                             
-                        # Build Report instance
-                        report = Report(**report_kwargs)
-                        reports_to_create.append(report)
+                        # Store report kwargs to create with valid IDs in atomic transaction
+                        reports_kwargs_list.append(report_kwargs)
                         
                         # Process individual test columns or row-wise test entries
                         this_row_tests = []
@@ -1527,14 +1526,15 @@ def bulk_upload(request):
                                         })
                         row_tests_data.append(this_row_tests)
                         
-                    # Bulk create reports and associated tests within a single transaction
+                    # Create reports with guaranteed primary key IDs and associated tests within an atomic transaction
                     with transaction.atomic():
-                        created_reports = Report.objects.bulk_create(reports_to_create, batch_size=500)
-                        
+                        created_reports = []
                         tests_to_create = []
                         from .models import determine_interpretation
                         
-                        for report_obj, tests_info in zip(created_reports, row_tests_data):
+                        for report_kwargs, tests_info in zip(reports_kwargs_list, row_tests_data):
+                            report_obj = Report.objects.create(**report_kwargs)
+                            created_reports.append(report_obj)
                             for info in tests_info:
                                 name = info['test_name']
                                 res_val = info['result_value']
@@ -1551,9 +1551,10 @@ def bulk_upload(request):
                                     interpretation_text=interpretation_text
                                 ))
                                 
-                        ReportTest.objects.bulk_create(tests_to_create, batch_size=1000)
+                        if tests_to_create:
+                            ReportTest.objects.bulk_create(tests_to_create, batch_size=1000)
                         
-                    # Sync bulk created reports to Firebase Firestore after transaction commits
+                    # Sync created reports (with valid primary keys & child tests) to Firebase Firestore
                     try:
                         from reports.firebase_sync import sync_report_to_firebase
                         for report_obj in created_reports:
