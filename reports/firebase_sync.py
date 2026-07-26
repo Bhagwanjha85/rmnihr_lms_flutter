@@ -21,20 +21,30 @@ def get_firestore_client():
             return _db
 
         creds_json = os.environ.get('FIREBASE_CREDENTIALS')
-        creds_file_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'firebase_credentials.json')
-
         cred = None
         if creds_json:
             try:
                 cred_dict = json.loads(creds_json)
+                if isinstance(cred_dict, dict) and isinstance(cred_dict.get('private_key'), str):
+                    cred_dict['private_key'] = cred_dict['private_key'].replace('\\n', '\n')
                 cred = credentials.Certificate(cred_dict)
             except Exception as e:
                 logger.error(f"Failed to parse FIREBASE_CREDENTIALS environment variable: {e}")
-        elif os.path.exists(creds_file_path):
-            try:
-                cred = credentials.Certificate(creds_file_path)
-            except Exception as e:
-                logger.error(f"Failed to read firebase_credentials.json file: {e}")
+
+        if not cred:
+            candidate_paths = [
+                '/etc/secrets/firebase_credentials.json',
+                os.path.join(os.path.dirname(os.path.dirname(__file__)), 'firebase_credentials.json'),
+                os.path.join(os.getcwd(), 'firebase_credentials.json')
+            ]
+            for p in candidate_paths:
+                if os.path.exists(p):
+                    try:
+                        cred = credentials.Certificate(p)
+                        logger.info(f"Loaded Firebase credentials from file: {p}")
+                        break
+                    except Exception as e:
+                        logger.error(f"Failed to read credentials file at {p}: {e}")
 
         if cred:
             firebase_admin.initialize_app(cred)
@@ -214,55 +224,81 @@ def restore_data_from_firebase():
 
             reports_docs = client.collection('reports').stream()
             for doc in reports_docs:
-                d = doc.to_dict()
-                if not d or not d.get('id'):
-                    continue
-                rec_date = datetime.fromisoformat(d['receiving_date']).date() if d.get('receiving_date') else None
-                rep_date = datetime.fromisoformat(d['reporting_date']).date() if d.get('reporting_date') else None
+                try:
+                    d = doc.to_dict()
+                    if not d or not d.get('id'):
+                        continue
+                    rec_date = None
+                    if d.get('receiving_date'):
+                        try:
+                            rec_date = datetime.fromisoformat(str(d['receiving_date'])).date()
+                        except:
+                            pass
+                    rep_date = None
+                    if d.get('reporting_date'):
+                        try:
+                            rep_date = datetime.fromisoformat(str(d['reporting_date'])).date()
+                        except:
+                            pass
 
-                report, created = Report.objects.update_or_create(
-                    id=d.get('id'),
-                    defaults={
-                        'lab_id': d.get('lab_id', ''),
-                        'patient_name': d.get('patient_name', ''),
-                        'age_value': d.get('age_value'),
-                        'age_unit': d.get('age_unit', 'Y'),
-                        'sex': d.get('sex', 'M'),
-                        'ref_by': d.get('ref_by', ''),
-                        'sample_type': d.get('sample_type', ''),
-                        'test_method': d.get('test_method', ''),
-                        'receiving_date': rec_date,
-                        'reporting_date': rep_date,
-                    }
-                )
-                tests = d.get('tests', [])
-                for t in tests:
-                    t_id = t.get('id')
-                    t_name = t.get('test_name', '')
-                    t_method = (t.get('test_method') or report.test_method or 'ELISA').upper()
-                    t_val = t.get('result_value', '')
-                    t_interp = t.get('interpretation_text', '')
+                    report, created = Report.objects.update_or_create(
+                        id=d.get('id'),
+                        defaults={
+                            'lab_id': d.get('lab_id', ''),
+                            'patient_name': d.get('patient_name', ''),
+                            'age_value': d.get('age_value'),
+                            'age_unit': d.get('age_unit', 'Y'),
+                            'sex': d.get('sex', 'M'),
+                            'ref_by': d.get('ref_by', ''),
+                            'sample_type': d.get('sample_type', ''),
+                            'test_method': d.get('test_method', ''),
+                            'receiving_date': rec_date,
+                            'reporting_date': rep_date,
+                        }
+                    )
 
-                    if not t_interp and t_val:
-                        config = configs_dict.get(t_method, {}).get(t_name.lower()) or configs_dict.get('ALL', {}).get(t_name.lower())
-                        t_interp = determine_interpretation(t_name, t_method, t_val, config=config)
-
-                    defaults_dict = {
-                        'report': report,
-                        'test_method': t_method,
-                        'test_name': t_name,
-                        'result_value': t_val,
-                        'interpretation_text': t_interp,
-                    }
-
-                    if t_id:
-                        ReportTest.objects.update_or_create(id=t_id, defaults=defaults_dict)
+                    raw_tests = d.get('tests', [])
+                    if isinstance(raw_tests, dict):
+                        tests_list = list(raw_tests.values())
+                    elif isinstance(raw_tests, list):
+                        tests_list = raw_tests
                     else:
-                        ReportTest.objects.update_or_create(
-                            report=report,
-                            test_name=t_name,
-                            defaults=defaults_dict
-                        )
+                        tests_list = []
+
+                    for t in tests_list:
+                        if not isinstance(t, dict):
+                            continue
+                        try:
+                            t_id = t.get('id')
+                            t_name = str(t.get('test_name') or '').strip()
+                            t_method = str(t.get('test_method') or report.test_method or 'ELISA').strip().upper()
+                            t_val = str(t.get('result_value') or '').strip()
+                            t_interp = str(t.get('interpretation_text') or '').strip()
+
+                            if not t_interp and t_val:
+                                config = configs_dict.get(t_method, {}).get(t_name.lower()) or configs_dict.get('ALL', {}).get(t_name.lower())
+                                t_interp = determine_interpretation(t_name, t_method, t_val, config=config)
+
+                            defaults_dict = {
+                                'report': report,
+                                'test_method': t_method,
+                                'test_name': t_name,
+                                'result_value': t_val,
+                                'interpretation_text': t_interp,
+                            }
+
+                            if t_id:
+                                ReportTest.objects.update_or_create(id=t_id, defaults=defaults_dict)
+                            else:
+                                ReportTest.objects.update_or_create(
+                                    report=report,
+                                    test_name=t_name,
+                                    defaults=defaults_dict
+                                )
+                        except Exception as test_err:
+                            logger.error(f"Error restoring test record for report {report.id}: {test_err}")
+                except Exception as doc_err:
+                    logger.error(f"Error restoring report doc {doc.id}: {doc_err}")
             logger.info("Restored Reports and ReportTests with calculated interpretations from Firebase Firestore.")
 
         # 3. Restore PublicReportAccess if DB is empty
